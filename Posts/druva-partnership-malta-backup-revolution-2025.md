@@ -274,8 +274,8 @@ Direct access to local technicians who know your business and can provide person
 
 ### **Exclusive Partnership Launch Benefits**
 
-#### 💥 **3 Months FREE Protection**
-**Value:** €567-1,350 depending on business size
+#### 💥 **1 Month FREE Protection**
+**Value:** €189-450 depending on business size
 **Includes:** Full Druva backup protection with all enterprise features
 **No commitment:** Cancel anytime during or after trial period
 
@@ -295,9 +295,9 @@ Direct access to local technicians who know your business and can provide person
 **Local support:** Malta-based team provides immediate response
 
 ### **Qualification Requirements**
-- Malta-based SMB with 5-250 employees
+- Malta-based SMB with 1-250 employees
 - Current backup system in place (for migration)
-- Commitment to 3-month evaluation period
+- Commitment to 1-month evaluation period
 - Willingness to provide case study feedback
 
 **Limited availability:** First 25 Malta businesses only
@@ -436,6 +436,6 @@ The Malta businesses that act fast get the limited-time launch benefits. The one
 
 📞 **Druva Consultation:** +356 9940 2975  
 📧 **Quick Questions:** backup@limitbreakit.com  
-🛡️ **Free Assessment:** [Book your Druva demo now](https://limitbreakit.com/druva-demo)
+🛡️ **Free Assessment:** [Book your Druva demo now](https://www.limitbreakit.com/#contact)
 
 *Ready to sleep peacefully knowing your business data is bulletproof? The phone call that transforms your data protection starts with one decision.*
