@@ -1,6 +1,6 @@
 ---
 slug: cybersecurity-malta-smb-protection-guide-2025
-title: URGENT: 89% of Malta SMBs Hit by Cyberattacks - Complete Protection Guide
+title: URGENT - 89% of Malta SMBs Hit by Cyberattacks - Complete Protection Guide
 excerpt: Shocking cybersecurity statistics reveal Malta SMBs lose €2.3M annually to cyber threats. Essential protection strategies, GDPR compliance, and emergency response plans.
 publishedAt: 2025-09-14
 author: LimitBreakIT Security Team
@@ -9,7 +9,7 @@ tags: [Malta Cybersecurity, SMB Security, GDPR Compliance, Cyber Threats Malta, 
 image: /images/blog/cybersecurity-malta-smb.jpg
 featured: true
 metaTitle: Malta SMB Cybersecurity: 89% Attack Rate - Complete Protection Guide 2025
-metaDescription: URGENT: Malta SMBs lose €2.3M annually to cyberattacks. Complete cybersecurity guide with GDPR compliance, emergency response, and protection strategies. Free security assessment.
+metaDescription: URGENT - Malta SMBs lose €2.3M annually to cyberattacks. Complete cybersecurity guide with GDPR compliance, emergency response, and protection strategies. Free security assessment.
 keywords: [Malta cybersecurity SMB, Malta business security threats, GDPR compliance Malta, cyber attack protection Malta, Malta data breach prevention, ransomware protection Malta, Malta business cyber insurance, SMB security solutions Malta, Malta IT security services, cybersecurity Malta small business]
 ---
 
