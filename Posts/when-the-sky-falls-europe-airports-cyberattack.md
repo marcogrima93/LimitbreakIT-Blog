@@ -19,27 +19,27 @@ keywords: [airport cyberattack, Europe aviation security, Collins Aerospace brea
 
 ## The Day Air Travel Stood Still
 
-On a seemingly ordinary Friday night, hackers launched a **coordinated cyberattack** against Collins Aerospace’s MUSE check-in and boarding system, crippling Europe’s busiest hubs—London Heathrow, Brussels Airport, and Berlin Brandenburg[458]. Manual processes replaced seamless automation, leading to long queues, widespread flight cancellations, and delays that echoed the fallout of a digital earthquake.
+On a seemingly ordinary Friday night, hackers launched a **coordinated cyberattack** against Collins Aerospace’s MUSE check-in and boarding system, crippling Europe’s busiest hubs—London Heathrow, Brussels Airport, and Berlin Brandenburg. Manual processes replaced seamless automation, leading to long queues, widespread flight cancellations, and delays that echoed the fallout of a digital earthquake.
 
 ### Scale of the Disruption
 
-- **Heathrow:** Manual check-in became mandatory. Despite mitigating steps, 29 departures were canceled by 11:30 GMT, with delays persisting into the weekend[458].
-- **Brussels:** Of 257 scheduled departures on Sunday, 45 flights were scrubbed, and remaining departures faced delays of 30–90 minutes[456].
-- **Berlin:** Operations shifted to manual boarding. While delays were moderate, passenger confusion and uncertainty reigned[456].
+- **Heathrow:** Manual check-in became mandatory. Despite mitigating steps, 29 departures were canceled by 11:30 GMT, with delays persisting into the weekend.
+- **Brussels:** Of 257 scheduled departures on Sunday, 45 flights were scrubbed, and remaining departures faced delays of 30–90 minutes.
+- **Berlin:** Operations shifted to manual boarding. While delays were moderate, passenger confusion and uncertainty reigned.
 
 This incident rapidly escalated into a **critical infrastructure crisis**, revealing the fragility of interconnected aviation systems.
 
 ## Anatomy of the Attack
 
-Cybercriminals targeted the **supply chain** rather than individual airports. By infiltrating Collins Aerospace’s systems, they achieved a force-multiplier effect—knocking out check-in and baggage-drop capabilities across multiple countries without breaching airport networks directly[457].
+Cybercriminals targeted the **supply chain** rather than individual airports. By infiltrating Collins Aerospace’s systems, they achieved a force-multiplier effect—knocking out check-in and baggage-drop capabilities across multiple countries without breaching airport networks directly.
 
 - **Supply-chain vector:** Exploited third-party MUSE software used by dozens of airlines and airports.  
 - **Operational sabotage:** Forced staff to revert to handwritten boarding passes and bag tags under immense pressure.  
-- **Cascade effect:** Disrupted connections and downstream schedules in Paris, Amsterdam, and Lisbon, highlighting system-wide interdependencies[457].
+- **Cascade effect:** Disrupted connections and downstream schedules in Paris, Amsterdam, and Lisbon, highlighting system-wide interdependencies.
 
 ## Why Aviation Is a Prime Target
 
-Aviation’s reliance on **shared digital platforms**—from check-in kiosks to baggage handling—creates a **single point of failure**[457]. Modern airports have bolted on digital tools for efficiency, but redundancy often lags behind innovation.
+Aviation’s reliance on **shared digital platforms**—from check-in kiosks to baggage handling—creates a **single point of failure**. Modern airports have bolted on digital tools for efficiency, but redundancy often lags behind innovation.
 
 1. **High visibility:** Grounded flights grab headlines, amplifying criminal leverage.  
 2. **Regulatory complexity:** Varying national cybersecurity standards slow unified defenses.  
@@ -49,7 +49,7 @@ Aviation’s reliance on **shared digital platforms**—from check-in kiosks to 
 
 ### 1. Treat Cybersecurity as Operational Safety
 
-Just as airports design multiple runways and power systems, digital operations demand **redundant systems** and **clear failover protocols**. Backup check-in platforms and offline procedures should be **regularly tested** and integrated into emergency drills[457].
+Just as airports design multiple runways and power systems, digital operations demand **redundant systems** and **clear failover protocols**. Backup check-in platforms and offline procedures should be **regularly tested** and integrated into emergency drills.
 
 ### 2. Secure the Supply Chain
 
@@ -61,7 +61,7 @@ Segment networks and enforce **least-privilege access** for critical systems. As
 
 ### 4. Collaborative Threat Intelligence
 
-Public-private partnerships and **cross-border information sharing** accelerate detection and response. Europe-wide coordination through ENISA and national CERTs must be **operationalized** to preempt future incidents[461].
+Public-private partnerships and **cross-border information sharing** accelerate detection and response. Europe-wide coordination through ENISA and national CERTs must be **operationalized** to preempt future incidents.
 
 ## The Path Forward
 
