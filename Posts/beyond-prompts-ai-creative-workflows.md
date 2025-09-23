@@ -1,6 +1,6 @@
 ---
 slug: beyond-prompts-generative-ai-creative-workflows-2025
-title: Beyond Prompts: How Creative Pros Are Really Using Generative AI in 2025
+title: Beyond Prompts - How Creative Pros Are Really Using Generative AI in 2025
 excerpt: From Runway Gen-4 to Firefly's advanced video tools, here's how designers, editors, and marketers are building reliable AI workflows that actually work in real production.
 publishedAt: 2025-09-24
 author: LimitBreakIT Creative Tech Team
@@ -8,7 +8,7 @@ category: Emerging Technology
 tags: [Generative AI, Runway, Adobe Firefly, Stable Diffusion 3, Canva, Luma, Pika, Creative Workflows]
 image: /images/blog/generative-ai-creative-2025.jpg
 featured: true
-metaTitle: Beyond Prompts: How Creative Teams Actually Use AI Tools in 2025
+metaTitle: Beyond Prompts - How Creative Teams Actually Use AI Tools in 2025
 metaDescription: Real workflows from design teams using Runway Gen-4, Adobe Firefly video, Stable Diffusion 3, Luma Dream Machine, and Canva Magic Design in production.
 keywords: [Runway Gen-4, Adobe Firefly video, Stable Diffusion 3, Canva Magic Design, Luma Dream Machine, Pika AI, creative AI workflows, design automation]
 ---
