@@ -59,7 +59,7 @@ One target. One attack. Three major airports down.
 - Hand-write baggage tags and hope for the best
 - Process thousands of angry travelers with 1990s methods
 
-{{image: /images/blog/airport-manual-checkin-chaos.jpg, width: 600, height: 400, alt: "Airport staff manually checking in passengers during cyberattack with paper forms and handwritten boarding passes"}}
+{{image: /images/blog/airport-manual-checkin-chaos.jpg, width: 600, height: 400, alt: "Airport Screens showing all flights as cancelled or delayed"}}
 
 ## Official Response and Recovery Timeline
 
