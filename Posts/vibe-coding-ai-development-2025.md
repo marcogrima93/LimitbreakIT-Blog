@@ -9,7 +9,7 @@ readTime: "8 min read"
 category: "Artificial Intelligence"
 tags: ["AI Development", "Vibe Coding", "Software Engineering", "Machine Learning", "Creative Tech", "Programming", "Automation"]
 featured: true
-image: "/images/vibe-coding-hero.jpg"
+image: "/images/blog/vibe-coding-hero.jpg"
 metaTitle: "Vibe Coding: AI-Powered Development Revolution | Complete Guide 2025"
 metaDescription: "Learn about vibe coding - the revolutionary AI-driven development approach transforming how teams build software. Discover tools, benefits, challenges, and implementation strategies."
 keywords: ["vibe coding", "AI development", "artificial intelligence programming", "code generation", "automated coding", "AI tools", "software development trends", "creative tech workflows"]
