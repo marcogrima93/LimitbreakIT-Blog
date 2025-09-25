@@ -59,7 +59,7 @@ One target. One attack. Three major airports down.
 - Hand-write baggage tags and hope for the best
 - Process thousands of angry travelers with 1990s methods
 
-{{image: /images/blog/airport-manual-checkin-chaos.jpg, width: 600, height: 400, alt: "Airport Screens showing all flights as cancelled or delayed"}}
+{{image: /images/blog/airport-manual-checkin-chaos.jpg, width: 600, height: 400, alt: "Airport screens down, staff doing manual check‑in"}}
 
 ## Official Response and Recovery Timeline
 
@@ -223,6 +223,6 @@ LimitBreakIT helps Malta companies build cyber resilience before attacks happen.
 
 📞 **Emergency Cybersecurity Assessment:** +356 9940 2975  
 📧 **Quick Security Questions:** security@limitbreakit.com  
-🛡️ **24/7 Incident Response:** [Emergency cyber support hotline](https://limitbreakit.com/emergency-response)
+🛡️ **24/7 Incident Response:** [Emergency cyber support hotline](https://limitbreakit.com/#contact)
 
 *The next cyberattack is coming. The only question is: will your business be ready?*
