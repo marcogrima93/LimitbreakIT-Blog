@@ -63,11 +63,11 @@ One target. One attack. Three major airports down.
 
 ## Official Response and Recovery Timeline
 
-**Collins Aerospace Statement:** [Parent company RTX acknowledged](https://www.rtx.com) a "cyber-related disruption" affecting "select airports" and said it was working to resolve the issue quickly.
+**Collins Aerospace Statement:** [Parent company RTX acknowledged](https://edition.cnn.com/2025/09/20/travel/europe-airports-cyber-attack-intl) a "cyber-related disruption" affecting "select airports" and said it was working to resolve the issue quickly.
 
-**UK Transport Secretary Heidi Alexander:** ["I'm aware of an incident affecting airline check-in and boarding... I'm getting regular updates and monitoring the situation."](https://www.gov.uk/government/news/transport-secretary-statement-airport-disruption)
+**UK Transport Secretary Heidi Alexander:** ["I'm aware of an incident affecting airline check-in and boarding... I'm getting regular updates and monitoring the situation."](https://www.ncsc.gov.uk/news/collins-aerospace-incident)
 
-**European Commission Response:** Officials said they were ["closely monitoring the cyber attack"](https://ec.europa.eu/commission/presscorner/detail/en/IP_25_4891) but noted no evidence of "widespread severe" impact.
+**European Commission Response:** Officials said they were ["closely monitoring the cyber attack"](https://www.bbc.com/news/articles/cqjeej85452o) but noted no evidence of "widespread severe" impact.
 
 **Recovery Progress:**
 - **Saturday-Sunday:** Gradual system restoration with continued delays
