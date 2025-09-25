@@ -117,7 +117,7 @@ What’s changed is the emergence of AI tools that are consistent, integrated, a
 
 ## 6. The Honest Limits (What Humans Still Own)
 
-### What AI  *Can’t*  Do (Yet)
+### What AI **Can’t** Do (Yet)
 - Deep **narrative arcs or emotional storytelling** — those require strategy, context, empathy  
 - **Brand voice and messaging** — crafting the story, positioning, and brand tone  
 - **Client relationships, collaborations, feedback negotiation** — soft skills still rule  
