@@ -153,9 +153,9 @@ Pick one tool aligned with your core pain point:
 
 - **Runway**: 125 free credits on signup > [Link](https://runwayml.com)
 - **Firefly / Firefly Video**: 25 monthly credits (non‑subscribers) > [Link](https://www.adobe.com/products/firefly.html)
-- **Stable Diffusion 3**: freely accessible for personal use > [Link](https://stablediffusionweb.com)
+- **Stable Diffusion 3**: 30 credits per day for just $1 > [Link](https://s.diffus.me/fd0ffd)
 - **Luma Dream Machine**: 500 free monthly credits, watermarked > [Link](https://lumalabs.ai/dream-machine)
-- **Pika 2.2**: 80 free monthly credits (basic plan) > [Link](https://pika.art)
+- **Pika 2.2**: 80 free monthly credits (basic plan) > [Link](https://pika.style/?via=marco-grima)
 - **Canva Magic Design**: 10 lifetime free uses > [Link](https://www.canva.com/magic-design/)
 
 **Pro upgrade suggestions:**  
