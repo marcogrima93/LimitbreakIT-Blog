@@ -859,3 +859,36 @@ async function generateBlogPost() {
     await fs.writeFile(filePath, markdownContent, 'utf8');
     
     console.log('🎉 Blog post created successfully!');
+    console.log(`📁 File: ${fileName}`);
+    console.log(`📰 Title: ${blogPost.title}`);
+    console.log(`🏷️  Category: ${blogPost.category}`);
+    console.log(`📊 Read time: ${calculateReadTime(trendsData.content)}`);
+    console.log(`🏃‍♂️ Word count: ~${trendsData.content.split(' ').length} words`);
+    console.log(`🔗 Slug: ${finalSlug}`);
+    
+    return filePath;
+    
+  } catch (error) {
+    console.error('💥 Error generating blog post:', error);
+    process.exit(1);
+  }
+}
+
+// Execute the script
+async function main() {
+  console.log('🚀 Starting automated blog generation...');
+  console.log(`📅 Date: ${new Date().toISOString()}`);
+  
+  try {
+    await generateBlogPost();
+    console.log('✅ Blog generation completed successfully!');
+  } catch (error) {
+    console.error('❌ Blog generation failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run if this is the main module
+if (require.main === module) {
+  main();
+}
