@@ -29,7 +29,7 @@ jobs:
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node generate-blog.js
+        run: node scripts/generate-blog.js
 
       - name: Commit and push changes
         run: |
