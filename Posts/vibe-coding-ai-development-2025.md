@@ -69,10 +69,10 @@ Human oversight ensures:
 The ecosystem of vibe coding tools has exploded, each offering unique capabilities:
 
 ### **Full-Stack AI Development Platforms**
-- **[Replit Agent](https://replit.com)**: Natural language to full-stack applications
+- **[Replit Agent](https://replit.com/refer/marcogrima93)**: Natural language to full-stack applications
 - **[Cursor](https://cursor.sh)**: AI-powered code editor with contextual understanding
 - **[Windsurf](https://codeium.com/windsurf)**: Collaborative AI coding environment
-- **[Lovable](https://lovable.dev)**: Frontend-focused rapid prototyping
+- **[Lovable](https://lovable.dev?via=marco-grima)**: Frontend-focused rapid prototyping
 - **[v0.dev](https://v0.dev)**: Vercel's AI-powered UI component generator
 - **[Databutton](https://databutton.com)**: AI-powered data apps and analytics platforms
 
@@ -196,7 +196,7 @@ Consider using multiple tools:
 4. Deploy interactive data applications
 
 ### **Exploring Replit Agent**
-1. Create account at [replit.com](https://replit.com)
+1. Create account at [replit.com](https://replit.com/refer/marcogrima93)
 2. Start with "Create with AI Agent"
 3. Describe your full application
 4. Iterate and deploy instantly
