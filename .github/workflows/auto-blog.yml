@@ -1,0 +1,51 @@
+name: Auto Blog Generator
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (8 AM CEST)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  generate-blog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install axios js-yaml slugify
+
+      - name: Generate blog content
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node generate-blog.js
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Blog Auto Generator"
+          git add Posts/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
+            git push
+          fi
+
+      - name: Trigger website refresh
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.BLOG_REFRESH_URL }}" \
+            -H "x-api-key: ${{ secrets.BLOG_REFRESH_TOKEN }}" \
+            -H "Content-Type: application/json"
