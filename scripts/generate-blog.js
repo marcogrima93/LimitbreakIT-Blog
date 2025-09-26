@@ -29,7 +29,7 @@ async function getTechTrends() {
     console.log('🔍 Researching latest tech trends...');
     
     const response = await axios.post('https://api.perplexity.ai/chat/completions', {
-      model: "llama-3.1-sonar-large-128k-online",
+      model: "sonar",
       messages: [
         {
           role: "system",
