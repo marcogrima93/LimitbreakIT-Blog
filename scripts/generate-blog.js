@@ -218,7 +218,28 @@ Return JSON:
   "keywords": ["primary", "secondary", "long-tail"],
   "image": "/images/blog/name.jpg",
   "trendScore": 75
-}
+}`;
+
+  try {
+    const { data } = await axios.post(
+      'https://api.perplexity.ai/chat/completions',
+      {
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ],
+        temperature: 0.7,
+        max_tokens: 4500
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 90000
+      }
+    );
 
   try {
     const { data } = await axios.post(
