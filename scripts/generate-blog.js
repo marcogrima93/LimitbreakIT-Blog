@@ -12,7 +12,7 @@ const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70; // Trend score threshold for featured posts
-const MIN_WORD_COUNT = 1000;
+const MIN_WORD_COUNT = 900; // Reduced from 1000 to be more flexible
 const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
@@ -139,8 +139,8 @@ function injectMidImage(md) {
 // PERPLEXITY API
 // ============================================================================
 
-async function callPerplexity() {
-  console.log('🔍  Calling Perplexity for trending story…');
+async function callPerplexity(retryCount = 0) {
+  console.log(`🔍  Calling Perplexity for trending story… ${retryCount > 0 ? `(Retry ${retryCount}/2)` : ''}`);
 
   const system = `You are an expert tech journalist writing for LimitBreakIT, a Malta-based technology consultancy specializing in AI, cloud infrastructure, and digital transformation.
 
@@ -158,88 +158,73 @@ WRITING PRINCIPLES:
 - Provide value: Go beyond news recap to offer insights and implications
 - End with perspective: What should readers watch for or consider?
 
+CRITICAL: The content field MUST contain markdown with ## subheadings. Example format:
+## First Major Heading
+Content here...
+
+## Second Major Heading
+More content...
+
+## Third Major Heading
+Even more content...
+
 OUTPUT FORMAT:
 Return ONLY valid JSON (no markdown code blocks, no extra text).
 All facts must be real, verifiable, and less than 48 hours old.`;
 
-  const user = `Find the single most trending and impactful tech story from the past 48 hours that would interest:
-- CTOs and technology leaders
-- Innovators in AI, automation, or cloud infrastructure
-- European tech community (especially Malta/Mediterranean)
-- Decision-makers evaluating new technologies
+  const user = `Find the single most trending and impactful tech story from the past 48 hours that would interest CTOs, tech leaders, and innovators.
 
 TOPIC SELECTION CRITERIA:
 ✅ PREFER: Major product launches, significant funding rounds, breakthrough research, regulatory changes, major outages/incidents, transformative AI developments
-❌ AVOID: Minor feature updates, routine earnings reports, opinion pieces without news hooks, celebrity tech gossip
+❌ AVOID: Minor feature updates, routine earnings reports, opinion pieces without news hooks
 
-REQUIRED CONTENT STRUCTURE:
+MANDATORY CONTENT STRUCTURE (1200-1500 words):
 
-**Opening Hook** (2-3 sentences)
-- Grab attention with the most compelling angle
-- Make it clear why this matters RIGHT NOW
-- Set the stakes
+**Opening paragraph** (2-3 sentences - NO heading)
+Make it clear why this matters RIGHT NOW.
 
-**Background Context** (1 paragraph)
-- Brief context for readers unfamiliar with the topic
-- Key players and their significance
-- Why this development is noteworthy
+## Background and Context
+Brief context for readers unfamiliar with the topic. Key players and their significance. Why this development is noteworthy. (150-200 words)
 
-**Main Analysis** (3-5 sections with ## subheadings)
-Each section should be 2-4 paragraphs and include:
-1. What happened: Concrete facts and timeline
-2. Technical deep-dive: What's actually new or different
-3. Industry impact: How this affects businesses and markets
-4. Expert perspectives: Data points, analyst quotes, or market reactions
-5. Implications: What this means for the future
+## What Happened
+Concrete facts and timeline. What's actually new or different. Include specific data points. (200-250 words)
 
-**LimitBreakIT Perspective** (1 paragraph)
-- Brief tie-in to challenges our clients face
-- Practical takeaway for tech leaders
-- No hard sales pitch—just relevant context
+## Technical Analysis
+Deep-dive into the technology. How it works. What makes it different from existing solutions. (200-250 words)
 
-**Looking Ahead** (1 paragraph)
-- What to watch for next
-- Unanswered questions
-- Potential future developments
+## Industry Impact
+How this affects businesses and markets. Expert perspectives and analyst quotes. Market reactions. (200-250 words)
+
+## Strategic Implications
+What this means for tech leaders and decision-makers. Practical considerations for CTOs. How this relates to challenges businesses face today. (150-200 words)
+
+## Looking Ahead
+What to watch for next. Unanswered questions. Potential future developments. (150-200 words)
 
 QUALITY REQUIREMENTS:
-- 1200-1500 words minimum
-- At least 4 distinct ## subheadings
-- Include at least 3 specific data points (percentages, dollar amounts, user numbers, etc.)
+- MINIMUM 1200 words total
+- EXACTLY 5 sections with ## headings (shown above)
+- Include at least 3 specific data points (percentages, dollar amounts, user numbers)
 - At least one concrete example or case study
 - Write in active voice
-- Vary sentence length for readability
 - No generic statements like "in today's fast-paced world"
-- Optimize for E-E-A-T (Experience, Expertise, Authority, Trust)
-
-SEO OPTIMIZATION:
-- Natural keyword integration (don't keyword stuff)
-- Front-load important keywords in title and opening
-- Use semantic variations throughout
-- Meta descriptions should include a call-to-action
 
 Return JSON with EXACTLY these fields:
 {
-  "title": "Compelling, keyword-rich title (55-65 characters)",
-  "slug": "url-friendly-slug-with-primary-keyword",
-  "excerpt": "Engaging 150-160 character summary that creates curiosity",
-  "content": "Full markdown article following the structure above (1200-1500 words)",
+  "title": "Compelling title (55-65 characters)",
+  "slug": "url-friendly-slug",
+  "excerpt": "Engaging 150-160 character summary",
+  "content": "FULL MARKDOWN with ## subheadings as shown above (1200-1500 words)",
   "category": "One of: AI|Cloud|Cybersecurity|DevOps|Innovation|Digital Transformation",
-  "tags": ["3-5 specific, searchable tags"],
-  "metaTitle": "SEO-optimized title with primary keyword (50-60 chars)",
-  "metaDescription": "Benefit-focused description with CTA (150-160 chars)",
-  "keywords": ["primary-keyword", "secondary-keyword", "2-3 long-tail keywords"],
-  "image": "/images/blog/descriptive-file-name.jpg",
-  "trendScore": 85
+  "tags": ["3-5 specific tags"],
+  "metaTitle": "SEO title (50-60 chars)",
+  "metaDescription": "SEO description with CTA (150-160 chars)",
+  "keywords": ["primary-keyword", "secondary-keyword", "long-tail-keyword"],
+  "image": "/images/blog/descriptive-name.jpg",
+  "trendScore": 75
 }
 
-The trendScore should be your honest assessment (0-100) of:
-- Search volume and trending status
-- Relevance to our audience
-- Long-term significance vs. flash-in-the-pan news
-- Discussion volume on tech platforms
-
-Be objective and conservative with the score—not everything is 90+.`;
+CRITICAL: The "content" field MUST include the 5 ## section headings shown above. Without them, the output will be rejected.`;
 
   try {
     const { data } = await axios.post(
@@ -251,14 +236,14 @@ Be objective and conservative with the score—not everything is 90+.`;
           { role: 'user', content: user }
         ],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 4500 // Increased from 4000
       },
       {
         headers: {
           Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        timeout: 60000
+        timeout: 90000 // Increased from 60000
       }
     );
 
@@ -271,7 +256,21 @@ Be objective and conservative with the score—not everything is 90+.`;
       .replace(/```\s*$/i, '')
       .trim();
 
-    return JSON.parse(raw);
+    const result = JSON.parse(raw);
+    
+    // Quick validation before returning
+    const wordCount = countWords(result.content || '');
+    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
+    
+    if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
+      if (retryCount < 2) {
+        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        return callPerplexity(retryCount + 1);
+      }
+    }
+    
+    return result;
   } catch (error) {
     if (error.response) {
       console.error('API Error:', error.response.status, error.response.data);
