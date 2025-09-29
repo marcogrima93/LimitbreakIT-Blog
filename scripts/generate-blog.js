@@ -11,8 +11,8 @@ const yaml = require('js-yaml');
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
-const FEATURED_THRESHOLD = 70; // Trend score threshold for featured posts
-const MIN_WORD_COUNT = 500; // Realistic minimum - Perplexity often undershoots
+const FEATURED_THRESHOLD = 70;
+const MIN_WORD_COUNT = 500;
 const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
@@ -45,19 +45,16 @@ function validateContent(trend) {
   const errors = [];
   const warnings = [];
 
-  // Check word count
   const wordCount = countWords(trend.content);
   if (wordCount < MIN_WORD_COUNT) {
     errors.push(`Content too short: ${wordCount} words (minimum: ${MIN_WORD_COUNT})`);
   }
 
-  // Check for subheadings
   const subheadings = (trend.content.match(/^##\s+.+$/gm) || []).length;
   if (subheadings < MIN_SUBHEADINGS) {
     errors.push(`Insufficient structure: ${subheadings} subheadings (minimum: ${MIN_SUBHEADINGS})`);
   }
 
-  // Check for data points
   const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(
     trend.content
   );
@@ -65,28 +62,14 @@ function validateContent(trend) {
     warnings.push('Content may lack specific data/statistics');
   }
 
-  // Check for required fields
-  const required = [
-    'title',
-    'slug',
-    'excerpt',
-    'content',
-    'category',
-    'metaTitle',
-    'metaDescription'
-  ];
+  const required = ['title', 'slug', 'excerpt', 'content', 'category', 'metaTitle', 'metaDescription'];
   required.forEach(field => {
     if (!trend[field] || trend[field].trim() === '') {
       errors.push(`Missing required field: ${field}`);
     }
   });
 
-  // Check trend score
-  if (
-    typeof trend.trendScore !== 'number' ||
-    trend.trendScore < 0 ||
-    trend.trendScore > 100
-  ) {
+  if (typeof trend.trendScore !== 'number' || trend.trendScore < 0 || trend.trendScore > 100) {
     errors.push('Invalid trendScore (must be 0-100)');
   }
 
@@ -96,17 +79,13 @@ function validateContent(trend) {
 async function fetchExistingSlugs() {
   const slugs = new Set();
 
-  // Fetch local slugs from Posts directory
   try {
     const files = await fs.readdir(POSTS_DIR);
-    files
-      .filter(f => f.endsWith('.md'))
-      .forEach(f => slugs.add(f.replace('.md', '')));
+    files.filter(f => f.endsWith('.md')).forEach(f => slugs.add(f.replace('.md', '')));
   } catch (_) {
-    // Directory may not exist yet, that's fine
+    // Directory may not exist yet
   }
 
-  // Try to fetch remote slugs via simple regex (no cheerio needed)
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
     const matches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
@@ -130,8 +109,7 @@ function injectMidImage(md) {
   const firstH2 = md.indexOf('\n', idx);
   if (firstH2 === -1) return md;
 
-  const imgTag =
-    '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
+  const imgTag = '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
   return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
 }
 
@@ -243,16 +221,10 @@ Return JSON:
 
     let raw = data?.choices?.[0]?.message?.content || '{}';
 
-    // Clean up any markdown wrappers
-    raw = raw
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
     const result = JSON.parse(raw);
     
-    // Quick validation before returning
     const wordCount = countWords(result.content || '');
     const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
     
@@ -273,59 +245,6 @@ Return JSON:
   }
 }
 
-  try {
-    const { data } = await axios.post(
-      'https://api.perplexity.ai/chat/completions',
-      {
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user }
-        ],
-        temperature: 0.7,
-        max_tokens: 4500 // Increased from 4000
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 90000 // Increased from 60000
-      }
-    );
-
-    let raw = data?.choices?.[0]?.message?.content || '{}';
-
-    // Clean up any markdown wrappers
-    raw = raw
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
-
-    const result = JSON.parse(raw);
-    
-    // Quick validation before returning
-    const wordCount = countWords(result.content || '');
-    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
-    
-    if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
-      if (retryCount < 2) {
-        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
-        return callPerplexity(retryCount + 1);
-      }
-    }
-    
-    return result;
-  } catch (error) {
-    if (error.response) {
-      console.error('API Error:', error.response.status, error.response.data);
-    }
-    throw error;
-  }
-}
-
 // ============================================================================
 // MAIN GENERATION LOGIC
 // ============================================================================
@@ -333,11 +252,9 @@ Return JSON:
 async function generateBlog() {
   console.log('🚀  Starting blog generation...\n');
 
-  // Step 1: Get trending story from Perplexity
   const trend = await callPerplexity();
   console.log(`📰  Received: "${trend.title}"`);
 
-  // Step 2: Validate content quality
   const validation = validateContent(trend);
 
   if (validation.errors.length > 0) {
@@ -351,24 +268,17 @@ async function generateBlog() {
     validation.warnings.forEach(warn => console.warn(`   - ${warn}`));
   }
 
-  console.log(
-    `\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`
-  );
+  console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
 
-  // Step 3: Determine featured status
   const featured = Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
-  console.log(
-    `✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`
-  );
+  console.log(`✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`);
 
-  // Step 4: Sanitize YAML values (remove colons that break YAML)
   ['title', 'excerpt', 'metaTitle', 'metaDescription'].forEach(k => {
     if (trend[k]) {
       trend[k] = stripColons(trend[k]);
     }
   });
 
-  // Step 5: Ensure slug uniqueness
   const existing = await fetchExistingSlugs();
   let slug = trend.slug || slugify(trend.title);
   if (existing.has(slug)) {
@@ -377,11 +287,9 @@ async function generateBlog() {
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
-  // Step 6: Clean and enhance markdown content
   let content = stripFootnotes(trend.content || '');
   content = injectMidImage(content);
 
-  // Step 7: Build frontmatter
   const frontmatter = {
     slug,
     title: trend.title,
@@ -405,7 +313,6 @@ async function generateBlog() {
 
   const finalMd = `---\n${yamlFront}---\n\n${content}`;
 
-  // Step 8: Write to file
   await fs.mkdir(POSTS_DIR, { recursive: true });
   const filePath = path.join(POSTS_DIR, `${slug}.md`);
   await fs.writeFile(filePath, finalMd, 'utf8');
