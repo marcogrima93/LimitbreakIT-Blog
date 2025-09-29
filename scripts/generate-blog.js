@@ -1,32 +1,32 @@
 /* eslint-disable no-console */
-const axios   = require('axios');
-const fs      = require('fs').promises;
-const path    = require('path');
-const yaml    = require('js-yaml');
-const cheerio = require('cheerio');
+const axios = require('axios');
+const fs = require('fs').promises;
+const path = require('path');
+const yaml = require('js-yaml');
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-const POSTS_DIR          = 'Posts';
-const BLOG_BASE_URL      = 'https://www.limitbreakit.com/insights-news';
-const FEATURED_THRESHOLD = 70;   // Trend score threshold for featured posts
-const MIN_WORD_COUNT     = 1000;
-const MIN_SUBHEADINGS    = 3;
+const POSTS_DIR = 'Posts';
+const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
+const FEATURED_THRESHOLD = 70; // Trend score threshold for featured posts
+const MIN_WORD_COUNT = 1000;
+const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
 function slugify(text) {
-  return text.toLowerCase()
-             .replace(/[^a-z0-9\s-]/g, '')
-             .replace(/\s+/g, '-')
-             .replace(/-+/g, '-')
-             .replace(/^-|-$|^-$/g, '')
-             .substring(0, 60);
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$|^-$/g, '')
+    .substring(0, 60);
 }
 
 function stripColons(str = '') {
@@ -58,13 +58,23 @@ function validateContent(trend) {
   }
 
   // Check for data points
-  const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(trend.content);
+  const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(
+    trend.content
+  );
   if (!hasDataPoints) {
     warnings.push('Content may lack specific data/statistics');
   }
 
   // Check for required fields
-  const required = ['title', 'slug', 'excerpt', 'content', 'category', 'metaTitle', 'metaDescription'];
+  const required = [
+    'title',
+    'slug',
+    'excerpt',
+    'content',
+    'category',
+    'metaTitle',
+    'metaDescription'
+  ];
   required.forEach(field => {
     if (!trend[field] || trend[field].trim() === '') {
       errors.push(`Missing required field: ${field}`);
@@ -72,7 +82,11 @@ function validateContent(trend) {
   });
 
   // Check trend score
-  if (typeof trend.trendScore !== 'number' || trend.trendScore < 0 || trend.trendScore > 100) {
+  if (
+    typeof trend.trendScore !== 'number' ||
+    trend.trendScore < 0 ||
+    trend.trendScore > 100
+  ) {
     errors.push('Invalid trendScore (must be 0-100)');
   }
 
@@ -80,25 +94,31 @@ function validateContent(trend) {
 }
 
 async function fetchExistingSlugs() {
+  const slugs = new Set();
+
+  // Fetch local slugs from Posts directory
+  try {
+    const files = await fs.readdir(POSTS_DIR);
+    files
+      .filter(f => f.endsWith('.md'))
+      .forEach(f => slugs.add(f.replace('.md', '')));
+  } catch (_) {
+    // Directory may not exist yet, that's fine
+  }
+
+  // Try to fetch remote slugs via simple regex (no cheerio needed)
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
-    const $ = cheerio.load(html);
-    const remote = $('a[href*="/insights-news/"]')
-      .map((_, el) => $(el).attr('href').split('/').pop())
-      .get();
-
-    let local = [];
-    try {
-      local = (await fs.readdir(POSTS_DIR))
-        .filter(f => f.endsWith('.md'))
-        .map(f => f.replace('.md', ''));
-    } catch (_) { /* folder may not exist yet */ }
-
-    return new Set([...remote, ...local]);
+    const matches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
+    matches.forEach(match => {
+      const slug = match.split('/').pop();
+      if (slug) slugs.add(slug);
+    });
   } catch (e) {
     console.warn('⚠️  Could not fetch remote slugs – continuing with local check only.');
-    return new Set();
   }
+
+  return slugs;
 }
 
 function injectMidImage(md) {
@@ -110,7 +130,8 @@ function injectMidImage(md) {
   const firstH2 = md.indexOf('\n', idx);
   if (firstH2 === -1) return md;
 
-  const imgTag = '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
+  const imgTag =
+    '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
   return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
 }
 
@@ -120,7 +141,7 @@ function injectMidImage(md) {
 
 async function callPerplexity() {
   console.log('🔍  Calling Perplexity for trending story…');
-  
+
   const system = `You are an expert tech journalist writing for LimitBreakIT, a Malta-based technology consultancy specializing in AI, cloud infrastructure, and digital transformation.
 
 BRAND VOICE & STYLE:
@@ -234,7 +255,7 @@ Be objective and conservative with the score—not everything is 90+.`;
       },
       {
         headers: {
-          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
           'Content-Type': 'application/json'
         },
         timeout: 60000
@@ -242,10 +263,14 @@ Be objective and conservative with the score—not everything is 90+.`;
     );
 
     let raw = data?.choices?.[0]?.message?.content || '{}';
-    
+
     // Clean up any markdown wrappers
-    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-    
+    raw = raw
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+
     return JSON.parse(raw);
   } catch (error) {
     if (error.response) {
@@ -268,7 +293,7 @@ async function generateBlog() {
 
   // Step 2: Validate content quality
   const validation = validateContent(trend);
-  
+
   if (validation.errors.length > 0) {
     console.error('\n❌  VALIDATION FAILED:');
     validation.errors.forEach(err => console.error(`   - ${err}`));
@@ -280,11 +305,15 @@ async function generateBlog() {
     validation.warnings.forEach(warn => console.warn(`   - ${warn}`));
   }
 
-  console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
+  console.log(
+    `\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`
+  );
 
   // Step 3: Determine featured status
   const featured = Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
-  console.log(`✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`);
+  console.log(
+    `✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`
+  );
 
   // Step 4: Sanitize YAML values (remove colons that break YAML)
   ['title', 'excerpt', 'metaTitle', 'metaDescription'].forEach(k => {
