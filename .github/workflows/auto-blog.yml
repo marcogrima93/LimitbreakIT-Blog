@@ -3,7 +3,7 @@ name: Auto Blog Generator
 on:
   schedule:
     # Run daily at 6 AM UTC (8 AM CEST)
- #   - cron: '0 6 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger
 
   # Add permissions for the GITHUB_TOKEN
