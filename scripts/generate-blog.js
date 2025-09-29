@@ -241,6 +241,38 @@ Return JSON:
       }
     );
 
+    let raw = data?.choices?.[0]?.message?.content || '{}';
+
+    // Clean up any markdown wrappers
+    raw = raw
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+
+    const result = JSON.parse(raw);
+    
+    // Quick validation before returning
+    const wordCount = countWords(result.content || '');
+    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
+    
+    if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
+      if (retryCount < 2) {
+        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return callPerplexity(retryCount + 1);
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    if (error.response) {
+      console.error('API Error:', error.response.status, error.response.data);
+    }
+    throw error;
+  }
+}
+
   try {
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
