@@ -12,7 +12,7 @@ const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70; // Trend score threshold for featured posts
-const MIN_WORD_COUNT = 900; // Reduced from 1000 to be more flexible
+const MIN_WORD_COUNT = 800; // Reduced from 1000 to be more flexible
 const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
