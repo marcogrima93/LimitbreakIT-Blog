@@ -11,8 +11,10 @@ const yaml = require('js-yaml');
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
-const FEATURED_THRESHOLD = 70;
+const FEATURED_THRESHOLD = 70; // AI will decide featured status based on reasoning
 const MIN_WORD_COUNT = 500;
+const MIN_SUBHEADINGS = 3;
+const EXISTING_POSTS_CACHE = []; // Will store titles/topics from website
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -49,6 +51,11 @@ function validateContent(trend) {
     errors.push(`Content too short: ${wordCount} words (minimum: ${MIN_WORD_COUNT})`);
   }
 
+  const subheadings = (trend.content.match(/^##\s+.+$/gm) || []).length;
+  if (subheadings < MIN_SUBHEADINGS) {
+    errors.push(`Insufficient structure: ${subheadings} subheadings (minimum: ${MIN_SUBHEADINGS})`);
+  }
+
   const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(
     trend.content
   );
@@ -67,18 +74,24 @@ function validateContent(trend) {
     errors.push('Invalid trendScore (must be 0-100)');
   }
 
-  return { errors, warnings, wordCount };
+  return { errors, warnings, wordCount, subheadings };
 }
 
 async function fetchExistingSlugs() {
   const slugs = new Set();
+  const posts = [];
 
   try {
     const files = await fs.readdir(POSTS_DIR);
-    files.filter(f => f.endsWith('.md')).forEach(f => slugs.add(f.replace('.md', '')));
-  } catch (_) {
-    // Directory may not exist yet
-  }
+    for (const file of files.filter(f => f.endsWith('.md'))) {
+      slugs.add(file.replace('.md', ''));
+      try {
+        const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
+        if (titleMatch) posts.push(titleMatch[1].trim());
+      } catch (_) {}
+    }
+  } catch (_) {}
 
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
@@ -87,10 +100,18 @@ async function fetchExistingSlugs() {
       const slug = match.split('/').pop();
       if (slug) slugs.add(slug);
     });
+    
+    // Extract titles from page
+    const titleMatches = html.match(/<h[2-3][^>]*>([^<]+)<\/h[2-3]>/g) || [];
+    titleMatches.forEach(match => {
+      const title = match.replace(/<[^>]+>/g, '').trim();
+      if (title.length > 10) posts.push(title);
+    });
   } catch (e) {
     console.warn('⚠️  Could not fetch remote slugs – continuing with local check only.');
   }
 
+  EXISTING_POSTS_CACHE.push(...posts);
   return slugs;
 }
 
@@ -111,84 +132,194 @@ function injectMidImage(md) {
 // PERPLEXITY API
 // ============================================================================
 
-async function callPerplexity(retryCount = 0) {
+async function callPerplexity(retryCount = 0, existingTopics = []) {
   console.log(`🔍  Calling Perplexity… ${retryCount > 0 ? `(Retry ${retryCount}/2)` : ''}`);
 
-  const system = `You are a sharp tech journalist for LimitBreakIT. Write conversational content that's easy to read.
+  const system = `You are the world's best trending tech blogger. You cover EVERYTHING hot in tech - from devastating cyberattacks to game-changing product launches, from billion-dollar acquisitions to industry-shaking scandals.
 
-VOICE: Conversational, no jargon, short sentences, active voice.
+Your readers trust you to break down complex tech news into stories they can't stop reading. You write like a journalist at The Verge meets a cybersecurity expert - informed, punchy, and always on top of what's trending RIGHT NOW.
 
-NEVER USE: "revolutionize", "game-changer", "cutting-edge", "leverage", "paradigm shift", "synergy", "disruptive", "stakeholders", "utilize", "robust", "holistic", "seamless"
+CRITICAL FORMATTING RULES:
+- *text* = italic text for subtle emphasis or quotes
+- **text** = bold for KEY TERMS, numbers, and important points
+- [text](url) = links (when you mention specific products/companies/sources)
+- ## Big Header = main section headers
+- ### **Subheader** = subsections within main sections
+- Tables for comparisons using | markdown syntax
+- Bullet points with - for lists
+- {{image: /images/blog/descriptive-name.jpg, width: 600, height: 400, alt: "Description"}} = inline images after major sections
+
+FORMATTING REQUIREMENTS:
+✓ SHORT paragraphs (2-4 sentences max)
+✓ Blank lines between paragraphs
+✓ Use **bold** liberally (8-12 times per article)
+✓ Use *italics* for quotes or subtle emphasis (3-5 times)
+✓ Include 1-2 tables if comparing data/systems/options
+✓ Add 1-2 inline images using {{image:...}} syntax
+✓ Use bullet points for lists of impacts/features/concerns
+✓ Include specific numbers with **bold** emphasis
+
+VOICE: 
+- Punchy and conversational
+- No corporate BS or jargon
+- Short, varied sentences
+- Write like breaking news to a friend
+
+BANNED WORDS: "revolutionize", "game-changer", "cutting-edge", "leverage", "paradigm shift", "synergy", "disruptive", "stakeholders", "utilize", "robust", "seamless", "transformative"
+
+YAML HEADER RULES:
+- NEVER use colons (:) in any YAML values
+- Replace colons with dashes (-)
+- Keep titles under 65 characters
+- Excerpts must be 140-160 characters
 
 Return ONLY valid JSON (no markdown wrappers).`;
 
-  const user = `Find a genuinely interesting tech story from the past 48 hours. Not just "Company X announced Y" - find something with real stakes, real impact, or a surprising angle.
+  const existingTopicsList = existingTopics.length > 0 
+    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics):\n${existingTopics.slice(0, 30).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nYou MUST choose a DIFFERENT story that hasn't been covered yet.`
+    : '';
 
-GOOD TOPICS:
-- Major product launches that actually change how people work
-- Big money moves (acquisitions, funding that signals market shifts)
-- Tech failures or outages that reveal something interesting
-- Regulatory fights or legal battles with wider implications
-- Breakthrough research that's NOT just incremental improvement
-- Industry drama or unexpected pivots
+  const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.
 
-BAD TOPICS:
-- Minor feature updates or version releases
-- Corporate earnings (unless there's drama)
-- Generic "AI is growing" stories without a specific hook
-- Vague "trends" without concrete news
+WHAT MAKES A STORY HOT:
+✅ **Cyberattacks** - Especially ones hitting major companies, infrastructure, or millions of users
+✅ **Major product launches** - New iPhones, groundbreaking AI models, game-changing hardware
+✅ **Tech scandals** - Data breaches, CEO drama, company meltdowns, whistleblowers
+✅ **Billion-dollar moves** - Acquisitions, funding rounds, market crashes, bankruptcies
+✅ **Infrastructure failures** - Major outages (AWS, Google, Microsoft, etc.), system crashes
+✅ **AI breakthroughs or disasters** - New capabilities that shock people OR spectacular failures
+✅ **Regulatory bombshells** - Governments banning things, massive fines, legal battles
+✅ **Industry drama** - Layoffs, pivots, competitive battles, market shake-ups
+
+AVOID BORING STUFF:
+❌ Minor feature updates or version bumps
+❌ Routine earnings (unless there's drama)
+❌ Generic trend pieces without specific news
+❌ Press releases without substance${existingTopicsList}
+
+AI REASONING FOR METADATA:
+
+You must intelligently decide ALL metadata fields using reasoning:
+
+**featuredDecision**: Evaluate if this story deserves featured status (true/false) based on:
+- Trending score (70+ = likely featured)
+- Impact scope (affects millions of users = featured)
+- Breaking news value (happening RIGHT NOW = featured)
+- Industry significance (reshapes markets = featured)
+Provide your reasoning in "featuredReasoning" field.
+
+**category**: Choose the BEST fit from: Cybersecurity, AI, Cloud, DevOps, Innovation, Digital Transformation
+Explain your choice in "categoryReasoning" field.
+
+**tags**: Generate 3-5 highly specific, searchable tags (not generic ones like "technology")
+Examples: "Airport Hack", "ChatGPT-5", "AWS Outage", "Apple M5 Chip"
+
+**trendScore**: Rate 0-100 based on:
+- Search volume and social media buzz
+- Relevance to tech professionals and businesses  
+- Long-term significance vs flash-in-pan news
+- Number of major outlets covering it
+Be honest and conservative - not everything is 90+.
 
 WRITING INSTRUCTIONS:
 
-Write a minimum of 1000 words in conversational style.
+Write 1000+ words. SHORT paragraphs (2-4 sentences). Blank lines between ALL paragraphs.
 
 **Opening** (2-4 sentences, no heading)
-Start with the most interesting angle. Make people want to keep reading. What's surprising, counterintuitive, or high-stakes about this?
+Start with a BANG. What's the most shocking angle?
 
-Example good openings:
-- "OpenAI just burned through $5 billion in 12 months. Here's why that's actually terrifying for the entire AI industry."
-- "Google's new AI can't count. Sounds stupid, right? But this failure reveals something important about how these systems actually work."
-
-DON'T start with:
-- "In a significant development..." ❌
-- "Company X announced..." ❌  
-- "The tech industry..." ❌
+GOOD: "**Heathrow Airport** went dark yesterday. Not a power failure - a cyberattack that grounded **thousands of flights** across Europe."
+BAD: "A significant security incident affected major airports..."
 
 ## What Actually Happened
-Tell the story. What went down? When? Specific numbers and details. (250+ words)
 
-## Why This Matters
-So what? Real-world impact. Concrete examples. (250+ words)
+Tell the story chronologically. Use **bold** for key facts, numbers, companies, and dates.
+
+Format:
+- Start with the immediate crisis/announcement
+- Add context about **who** is affected and **how many** people/systems
+- Include **specific numbers** (dollar amounts, user counts, time durations)
+- Quote sources or officials if available (use *italics* for quotes)
+- Add {{image:...}} after this section if story benefits from visual
+
+Break into 3-4 SHORT paragraphs. (250-300 words)
+
+## Why This Is a Big Deal
+
+Start with "Here's why this matters:" or "So what's the real story here?"
+
+Use:
+- **Bold** for key implications
+- Bullet points for multiple impacts:
+  - Impact on users/customers
+  - Impact on industry/competitors
+  - Impact on security/trust/regulation
+- Rhetorical questions ("What does this mean for...?")
+- Include a comparison table if relevant
+
+Example table:
+| **Before** | **After** |
+|-----------|----------|
+| **Trusted system** | Users questioning security |
+| **Market leader** | Competitors gaining ground |
+
+(250-300 words)
 
 ## The Technical Reality
-Explain HOW it works in plain English. Use analogies. (200+ words)
+
+Explain HOW it works in plain English.
+
+Use:
+- **Bold** for technical terms when first introduced
+- *Italics* for examples or metaphors
+- Analogies ("Think of it like...")
+- Break complex ideas into SHORT paragraphs
+- Add {{image:...}} if technical diagram would help
+
+(200-250 words)
+
+### **What This Means for Businesses**
+
+Create a subsection with practical implications:
+- Who needs to act?
+- What steps should they take?
+- Use bullet points for action items
 
 ## What Happens Next
-Where does this lead? Unanswered questions. (150+ words)
+
+Start with "So where does this go from here?"
+
+Include:
+- Open questions
+- Possible scenarios (best case / worst case)
+- Timeline for resolution or next developments
+- Use **bold** for predictions or critical unknowns
+
+(150-200 words)
 
 ## The Bottom Line
-Summary for decision-makers. Practical and actionable. (100+ words)
 
-QUALITY CHECKLIST:
-✓ Minimum 1000 words
-✓ Simple language, no jargon
-✓ 3+ specific data points
-✓ Active voice
-✓ Short paragraphs
-✓ Conversational tone
+One punchy paragraph starting with "Bottom line:" or "Here's what matters:"
 
-Return JSON:
+Use **bold** for the main takeaway. Make it memorable. (100-150 words)
+
+COMPLETE JSON RESPONSE:
+
 {
-  "title": "Engaging title (50-65 chars)",
+  "title": "Punchy title with hook (50-65 chars, NO COLONS)",
   "slug": "url-friendly-slug",
-  "excerpt": "Hook (140-160 chars)",
-  "content": "Full article, 1000+ words minimum",
-  "category": "AI|Cloud|Cybersecurity|DevOps|Innovation|Digital Transformation",
-  "tags": ["3-5 tags"],
-  "metaTitle": "SEO title (50-60 chars)",
-  "metaDescription": "Clear benefit (150-160 chars)",
-  "keywords": ["primary", "secondary", "long-tail"],
-  "image": "/images/blog/name.jpg",
+  "excerpt": "Compelling hook (140-160 chars, NO COLONS)",
+  "content": "Full markdown article with proper formatting",
+  "category": "Your chosen category",
+  "categoryReasoning": "Why you chose this category",
+  "tags": ["Specific", "Searchable", "Tags", "Not", "Generic"],
+  "featured": true or false,
+  "featuredReasoning": "Why this deserves featured status or not",
+  "metaTitle": "SEO optimized (50-60 chars, NO COLONS)",
+  "metaDescription": "Clear benefit/hook (150-160 chars, NO COLONS)",
+  "keywords": ["primary-keyword", "secondary-keyword", "long-tail-phrase"],
+  "image": "/images/blog/descriptive-file-name.jpg",
+  "author": "LimitBreakIT Security Insights Team" or "LimitBreakIT Innovation Team" or "LimitBreakIT Tech Insights Team" (choose based on topic),
   "trendScore": 75
 }`;
 
@@ -220,12 +351,13 @@ Return JSON:
     const result = JSON.parse(raw);
     
     const wordCount = countWords(result.content || '');
+    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
     
-    if (wordCount < MIN_WORD_COUNT) {
+    if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
       if (retryCount < 2) {
-        console.warn(`⚠️  Response too short (${wordCount} words). Retrying...`);
+        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        return callPerplexity(retryCount + 1);
+        return callPerplexity(retryCount + 1, existingTopics);
       }
     }
     
@@ -245,7 +377,12 @@ Return JSON:
 async function generateBlog() {
   console.log('🚀  Starting blog generation...\n');
 
-  const trend = await callPerplexity();
+  // Fetch existing posts first
+  console.log('📚  Checking existing blog posts...');
+  const existing = await fetchExistingSlugs();
+  console.log(`✓ Found ${EXISTING_POSTS_CACHE.length} existing posts to avoid duplicating\n`);
+
+  const trend = await callPerplexity(0, EXISTING_POSTS_CACHE);
   console.log(`📰  Received: "${trend.title}"`);
 
   const validation = validateContent(trend);
@@ -261,10 +398,18 @@ async function generateBlog() {
     validation.warnings.forEach(warn => console.warn(`   - ${warn}`));
   }
 
-  console.log(`\n✓ Content validated: ${validation.wordCount} words`);
+  console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
 
-  const featured = Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
-  console.log(`✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`);
+  // Use AI's featured decision
+  const featured = trend.featured === true || Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
+  console.log(`✓ Trend score: ${trend.trendScore}/100`);
+  console.log(`✓ Featured: ${featured ? 'YES' : 'NO'}`);
+  if (trend.featuredReasoning) {
+    console.log(`  Reasoning: ${trend.featuredReasoning}`);
+  }
+  if (trend.categoryReasoning) {
+    console.log(`✓ Category: ${trend.category} (${trend.categoryReasoning})`);
+  }
 
   ['title', 'excerpt', 'metaTitle', 'metaDescription'].forEach(k => {
     if (trend[k]) {
@@ -272,7 +417,6 @@ async function generateBlog() {
     }
   });
 
-  const existing = await fetchExistingSlugs();
   let slug = trend.slug || slugify(trend.title);
   if (existing.has(slug)) {
     const timestamp = Date.now().toString().slice(-5);
@@ -281,14 +425,18 @@ async function generateBlog() {
   }
 
   let content = stripFootnotes(trend.content || '');
-  content = injectMidImage(content);
+  
+  // Don't inject mid-image if AI already added inline images
+  if (!content.includes('{{image:')) {
+    content = injectMidImage(content);
+  }
 
   const frontmatter = {
     slug,
     title: trend.title,
     excerpt: trend.excerpt,
     publishedAt: new Date().toISOString().split('T')[0],
-    author: 'LimitBreakIT Team',
+    author: trend.author || 'LimitBreakIT Team',
     category: trend.category || 'Innovation',
     tags: trend.tags || [],
     image: trend.image || `/images/blog/${slug}.jpg`,
