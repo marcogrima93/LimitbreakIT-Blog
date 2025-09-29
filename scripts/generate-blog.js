@@ -12,7 +12,7 @@ const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70; // Trend score threshold for featured posts
-const MIN_WORD_COUNT = 800; // Reduced from 1000 to be more flexible
+const MIN_WORD_COUNT = 500; // Realistic minimum - Perplexity often undershoots
 const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
@@ -140,43 +140,15 @@ function injectMidImage(md) {
 // ============================================================================
 
 async function callPerplexity(retryCount = 0) {
-  console.log(`🔍  Calling Perplexity for trending story… ${retryCount > 0 ? `(Retry ${retryCount}/2)` : ''}`);
+  console.log(`🔍  Calling Perplexity… ${retryCount > 0 ? `(Retry ${retryCount}/2)` : ''}`);
 
-  const system = `You are a sharp, engaging tech journalist writing for LimitBreakIT. Your readers are smart business people who want to understand tech trends WITHOUT wading through jargon.
+  const system = `You are a sharp tech journalist for LimitBreakIT. Write conversational content that's easy to read.
 
-BRAND VOICE:
-- Conversational but credible - like explaining tech news to a smart friend over coffee
-- Use simple, direct language - avoid buzzwords, corporate speak, and unnecessary complexity
-- Start with "So what?" - always lead with why anyone should care
-- Real examples over abstract concepts
-- Short sentences. Punchy paragraphs. Easy to scan.
+VOICE: Conversational, no jargon, short sentences, active voice.
 
-FORBIDDEN WORDS & PHRASES (never use these):
-- "revolutionize/revolutionary" - "game-changer" - "cutting-edge" - "leverage"
-- "paradigm shift" - "synergy" - "ecosystem" - "disruptive" - "innovative" (overused)
-- "stakeholders" - "utilize" (just say "use") - "best-in-class"
-- "robust" - "holistic" - "seamless" - "transformative"
-- "in today's fast-paced world" - "at the end of the day"
+NEVER USE: "revolutionize", "game-changer", "cutting-edge", "leverage", "paradigm shift", "synergy", "disruptive", "stakeholders", "utilize", "robust", "holistic", "seamless"
 
-WRITING STYLE:
-- Write like a human, not a press release
-- Use contractions (it's, don't, we're)
-- Ask rhetorical questions to engage readers
-- Use analogies to explain complex tech ("think of it like...")
-- Include surprising facts or counterintuitive angles
-- Vary sentence length - mix short punchy sentences with longer explanations
-- Use active voice - "Meta released" not "was released by Meta"
-
-ENGAGEMENT HOOKS:
-- Start with a surprising statistic or provocative statement
-- Use real-world implications ("This means your iPhone could...")
-- Include human interest angles (who wins, who loses)
-- Add tension or conflict where relevant
-- End sections with forward-looking questions
-
-OUTPUT FORMAT:
-Return ONLY valid JSON (no markdown code blocks, no extra text).
-All facts must be real, verifiable, and less than 48 hours old.`;
+Return ONLY valid JSON (no markdown wrappers).`;
 
   const user = `Find a genuinely interesting tech story from the past 48 hours. Not just "Company X announced Y" - find something with real stakes, real impact, or a surprising angle.
 
@@ -196,9 +168,9 @@ BAD TOPICS:
 
 WRITING INSTRUCTIONS:
 
-Write 1200-1500 words in a conversational, engaging style. Imagine explaining this to a smart friend who doesn't work in tech.
+Write a minimum of 1000 words in conversational style.
 
-**Opening paragraph** (NO heading - 2-4 sentences)
+**Opening** (2-4 sentences, no heading)
 Start with the most interesting angle. Make people want to keep reading. What's surprising, counterintuitive, or high-stakes about this?
 
 Example good openings:
@@ -211,63 +183,42 @@ DON'T start with:
 - "The tech industry..." ❌
 
 ## What Actually Happened
-Tell the story chronologically. What went down? When? Use specific numbers, quotes, and details. Include the human drama if there is any. (200-300 words)
-
-Write this section like you're explaining it to someone at a bar. Keep it punchy and clear.
+Tell the story. What went down? When? Specific numbers and details. (250+ words)
 
 ## Why This Matters
-So what? Who cares? Connect this to real-world impact. Will this affect jobs? Prices? Competition? Security? 
-
-Use concrete examples:
-- "This means small marketing agencies can now..." ✓
-- "Tech leaders will need to..." ✓
-NOT:
-- "This enables organizations to leverage..." ❌
-- "Stakeholders across the ecosystem..." ❌
-
-(200-300 words)
+So what? Real-world impact. Concrete examples. (250+ words)
 
 ## The Technical Reality
-Explain HOW this actually works without getting too nerdy. Use analogies. Break down the tech in plain English.
-
-Example: "Think of it like autocomplete on steroids" is better than "utilizing advanced neural architecture patterns."
-
-What's genuinely new here vs. marketing hype? Be honest if something is incremental vs. breakthrough. (200-300 words)
+Explain HOW it works in plain English. Use analogies. (200+ words)
 
 ## What Happens Next
-Where does this lead? What are the unanswered questions? What should people watch for?
-
-Include multiple scenarios if there's genuine uncertainty. Avoid fortune-telling. (150-200 words)
+Where does this lead? Unanswered questions. (150+ words)
 
 ## The Bottom Line
-One paragraph summary: What should business leaders/decision-makers take away from this? Keep it practical and actionable. No fluff. (100-150 words)
+Summary for decision-makers. Practical and actionable. (100+ words)
 
 QUALITY CHECKLIST:
-✓ Uses simple, direct language (8th grade reading level)
-✓ No buzzwords or corporate jargon
-✓ Includes at least 3 specific numbers/data points
-✓ Has at least one concrete example or real-world scenario
-✓ Active voice throughout
-✓ Short paragraphs (3-4 sentences max)
-✓ Conversational tone (uses contractions, rhetorical questions)
-✓ Surprising or counterintuitive angle in opening
+✓ Minimum 1000 words
+✓ Simple language, no jargon
+✓ 3+ specific data points
+✓ Active voice
+✓ Short paragraphs
+✓ Conversational tone
 
 Return JSON:
 {
-  "title": "Engaging title that hints at stakes or surprise (50-65 chars)",
+  "title": "Engaging title (50-65 chars)",
   "slug": "url-friendly-slug",
-  "excerpt": "Hook that creates curiosity without clickbait (140-160 chars)",
-  "content": "Full article following structure above (1200-1500 words)",
+  "excerpt": "Hook (140-160 chars)",
+  "content": "Full article, 1000+ words minimum",
   "category": "AI|Cloud|Cybersecurity|DevOps|Innovation|Digital Transformation",
-  "tags": ["3-5 specific tags"],
+  "tags": ["3-5 tags"],
   "metaTitle": "SEO title (50-60 chars)",
-  "metaDescription": "Clear benefit or hook (150-160 chars)",
-  "keywords": ["primary-keyword", "secondary-keyword", "long-tail-keyword"],
-  "image": "/images/blog/descriptive-name.jpg",
+  "metaDescription": "Clear benefit (150-160 chars)",
+  "keywords": ["primary", "secondary", "long-tail"],
+  "image": "/images/blog/name.jpg",
   "trendScore": 75
 }
-
-REMEMBER: Write like a human. Be conversational. Cut the jargon. Make it interesting.`;
 
   try {
     const { data } = await axios.post(
