@@ -13,7 +13,6 @@ const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
 const MIN_WORD_COUNT = 500;
-const MIN_SUBHEADINGS = 3;
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -50,11 +49,6 @@ function validateContent(trend) {
     errors.push(`Content too short: ${wordCount} words (minimum: ${MIN_WORD_COUNT})`);
   }
 
-  const subheadings = (trend.content.match(/^##\s+.+$/gm) || []).length;
-  if (subheadings < MIN_SUBHEADINGS) {
-    errors.push(`Insufficient structure: ${subheadings} subheadings (minimum: ${MIN_SUBHEADINGS})`);
-  }
-
   const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(
     trend.content
   );
@@ -73,7 +67,7 @@ function validateContent(trend) {
     errors.push('Invalid trendScore (must be 0-100)');
   }
 
-  return { errors, warnings, wordCount, subheadings };
+  return { errors, warnings, wordCount };
 }
 
 async function fetchExistingSlugs() {
@@ -226,11 +220,10 @@ Return JSON:
     const result = JSON.parse(raw);
     
     const wordCount = countWords(result.content || '');
-    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
     
-    if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
+    if (wordCount < MIN_WORD_COUNT) {
       if (retryCount < 2) {
-        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
+        console.warn(`⚠️  Response too short (${wordCount} words). Retrying...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         return callPerplexity(retryCount + 1);
       }
@@ -268,7 +261,7 @@ async function generateBlog() {
     validation.warnings.forEach(warn => console.warn(`   - ${warn}`));
   }
 
-  console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
+  console.log(`\n✓ Content validated: ${validation.wordCount} words`);
 
   const featured = Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
   console.log(`✓ Trend score: ${trend.trendScore}/100 ${featured ? '(FEATURED)' : ''}`);
