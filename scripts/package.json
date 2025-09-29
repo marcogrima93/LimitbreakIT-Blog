@@ -1,0 +1,13 @@
+{
+  "name": "limitbreakit-blog",
+  "version": "1.0.0",
+  "description": "Auto-blog generator for LimitBreakIT",
+  "scripts": {
+    "generate": "node scripts/generate-blog.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "js-yaml": "^4.1.0"
+  }
+}
