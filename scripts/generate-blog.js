@@ -226,82 +226,63 @@ WRITING INSTRUCTIONS:
 Write 1000+ words. SHORT paragraphs (2-4 sentences). Blank lines between ALL paragraphs.
 
 **Opening** (2-4 sentences, no heading)
-Start with a BANG. What's the most shocking angle?
+Start with a BANG. Lead with the most shocking fact or angle.
 
 GOOD: "**Heathrow Airport** went dark yesterday. Not a power failure - a cyberattack that grounded **thousands of flights** across Europe."
 BAD: "A significant security incident affected major airports..."
 
-## What Actually Happened
+Create 4-5 sections with ## headers. Choose headers that fit YOUR specific story - don't use generic templates. Make headers compelling and specific to the news.
 
+For a cyberattack story, headers might be:
+- ## The Attack That Shut Down Europe's Busiest Airport
+- ## Why Airport Security Just Got a Wake-Up Call
+- ## How Hackers Exploited a Single Weakness
+- ## What Every Business Should Do Today
+
+For a product launch, headers might be:
+- ## Apple's Biggest Bet Since the iPhone
+- ## The Technology That Changes Everything
+- ## Why Competitors Are Scrambling
+- ## What This Means for Your Business
+
+STRUCTURE EACH SECTION:
+
+**First main section** (250-300 words)
 Tell the story chronologically. Use **bold** for key facts, numbers, companies, and dates.
+- Start with what happened
+- Who's affected and how many people/systems
+- Include **specific numbers** (dollars, users, time)
+- Add {{image:...}} at the end if relevant
 
-Format:
-- Start with the immediate crisis/announcement
-- Add context about **who** is affected and **how many** people/systems
-- Include **specific numbers** (dollar amounts, user counts, time durations)
-- Quote sources or officials if available (use *italics* for quotes)
-- Add {{image:...}} after this section if story benefits from visual
-
-Break into 3-4 SHORT paragraphs. (250-300 words)
-
-## Why This Is a Big Deal
-
-Start with "Here's why this matters:" or "So what's the real story here?"
-
-Use:
-- **Bold** for key implications
-- Bullet points for multiple impacts:
+**Second main section** (250-300 words)  
+Explain why this matters. Start with a strong transition like "Here's why this matters:" or "So what's the real story here?"
+- **Bold** key implications
+- Use bullet points for impacts:
   - Impact on users/customers
-  - Impact on industry/competitors
+  - Impact on industry/competitors  
   - Impact on security/trust/regulation
-- Rhetorical questions ("What does this mean for...?")
-- Include a comparison table if relevant
+- Consider adding a comparison table
 
-Example table:
-| **Before** | **After** |
-|-----------|----------|
-| **Trusted system** | Users questioning security |
-| **Market leader** | Competitors gaining ground |
+**Third main section** (200-250 words)
+Explain the technical reality in plain English.
+- Use **bold** for technical terms
+- Use analogies ("Think of it like...")
+- Break into short paragraphs
+- Add {{image:...}} if helpful
 
-(250-300 words)
+**Optional subsection with ### header**
+If relevant, add a subsection about business implications with bullet points.
 
-## The Technical Reality
-
-Explain HOW it works in plain English.
-
-Use:
-- **Bold** for technical terms when first introduced
-- *Italics* for examples or metaphors
-- Analogies ("Think of it like...")
-- Break complex ideas into SHORT paragraphs
-- Add {{image:...}} if technical diagram would help
-
-(200-250 words)
-
-### **What This Means for Businesses**
-
-Create a subsection with practical implications:
-- Who needs to act?
-- What steps should they take?
-- Use bullet points for action items
-
-## What Happens Next
-
-Start with "So where does this go from here?"
-
-Include:
+**Fourth main section** (150-200 words)
+What happens next. Start with "So where does this go from here?"
 - Open questions
-- Possible scenarios (best case / worst case)
-- Timeline for resolution or next developments
-- Use **bold** for predictions or critical unknowns
+- Possible scenarios
+- What to watch for
+- Use **bold** for predictions
 
-(150-200 words)
-
-## The Bottom Line
-
-One punchy paragraph starting with "Bottom line:" or "Here's what matters:"
-
-Use **bold** for the main takeaway. Make it memorable. (100-150 words)
+**Final section** (100-150 words)
+The bottom line. Start with "Bottom line:" or "Here's what matters:"
+Use **bold** for the main takeaway.
 
 COMPLETE JSON RESPONSE:
 
