@@ -164,6 +164,8 @@ VOICE:
 - No corporate BS or jargon
 - Short, varied sentences
 - Write like breaking news to a friend
+- Break long sentences into shorter ones - NEVER use em dashes (—)
+- Example: Change "Apple released iPhone 17 — a groundbreaking device" to "Apple released iPhone 17. It's a groundbreaking device."
 
 BANNED WORDS: "revolutionize", "game-changer", "cutting-edge", "leverage", "paradigm shift", "synergy", "disruptive", "stakeholders", "utilize", "robust", "seamless", "transformative"
 
@@ -252,7 +254,7 @@ Tell the story chronologically. Use **bold** for key facts, numbers, companies, 
 - Start with what happened
 - Who's affected and how many people/systems
 - Include **specific numbers** (dollars, users, time)
-- Add {{image:...}} at the end if relevant
+- Add {{image:...}} at the end of this section (ONLY 1 image total in the body)
 
 **Second main section** (250-300 words)  
 Explain why this matters. Start with a strong transition like "Here's why this matters:" or "So what's the real story here?"
@@ -261,14 +263,14 @@ Explain why this matters. Start with a strong transition like "Here's why this m
   - Impact on users/customers
   - Impact on industry/competitors  
   - Impact on security/trust/regulation
-- Consider adding a comparison table
+- Consider adding a comparison table (max 1 table per article)
 
 **Third main section** (200-250 words)
 Explain the technical reality in plain English.
 - Use **bold** for technical terms
 - Use analogies ("Think of it like...")
 - Break into short paragraphs
-- Add {{image:...}} if helpful
+- NO additional images here
 
 **Optional subsection with ### header**
 If relevant, add a subsection about business implications with bullet points.
@@ -282,7 +284,8 @@ What happens next. Start with "So where does this go from here?"
 
 **Final section** (100-150 words)
 The bottom line. Start with "Bottom line:" or "Here's what matters:"
-Use **bold** for the main takeaway.
+*Use italics for the entire final takeaway sentence to highlight it in blue.*
+Use **bold** within that italic sentence for extra emphasis on key terms.
 
 COMPLETE JSON RESPONSE:
 
