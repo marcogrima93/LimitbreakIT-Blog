@@ -187,6 +187,13 @@ Return ONLY valid JSON (no markdown wrappers).`;
 
   const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.
 
+CRITICAL RESEARCH REQUIREMENTS:
+- Search for TECHNICAL DETAILS and specific attack vectors - don't just summarize press releases
+- Look for security researcher reports, CVE databases, technical blogs (Krebs, BleepingComputer, SecurityWeek)
+- If it's a cyberattack, find out HOW they got in (specific vulnerability, which system, which CVE)
+- Cite SPECIFIC technical sources, not just mainstream news
+- If technical details aren't available, explicitly state "Technical details not yet disclosed" - DO NOT speculate
+
 WHAT MAKES A STORY HOT:
 ✅ **Cyberattacks** - Especially ones hitting major companies, infrastructure, or millions of users
 ✅ **Major product launches** - New iPhones, groundbreaking AI models, game-changing hardware
