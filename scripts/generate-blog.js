@@ -89,9 +89,13 @@ async function fetchExistingSlugs() {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
         const titleMatch = content.match(/^title:\s*(.+)$/m);
         if (titleMatch) posts.push(titleMatch[1].trim());
-      } catch (_) {}
+      } catch (err) {
+        console.warn(`⚠️  Failed to read ${file}: ${err.message}`);
+      }
     }
-  } catch (_) {}
+  } catch (_) {
+    // Directory doesn't exist yet - that's fine
+  }
 
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
@@ -107,8 +111,8 @@ async function fetchExistingSlugs() {
       const title = match.replace(/<[^>]+>/g, '').trim();
       if (title.length > 10) posts.push(title);
     });
-  } catch (e) {
-    console.warn('⚠️  Could not fetch remote slugs – continuing with local check only.');
+  } catch (err) {
+    console.warn(`⚠️  Could not fetch remote slugs: ${err.message}`);
   }
 
   EXISTING_POSTS_CACHE.push(...posts);
@@ -328,9 +332,10 @@ COMPLETE JSON RESPONSE:
       }
     );
 
-    let raw = data?.choices?.[0]?.message?.content || '{}';
-
-    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
+    
+    // Strip any markdown wrappers
+    raw = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
 
     const result = JSON.parse(raw);
     
@@ -338,18 +343,25 @@ COMPLETE JSON RESPONSE:
     const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
     
     if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
-      if (retryCount < 2) {
-        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      if (retryCount < 3) {
+        const waitTime = 2000 * Math.pow(2, retryCount); // Exponential backoff: 2s, 4s, 8s
+        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying in ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         return callPerplexity(retryCount + 1, existingTopics);
       }
     }
     
     return result;
   } catch (error) {
-    if (error.response) {
-      console.error('API Error:', error.response.status, error.response.data);
+    console.error(`❌ API Error (attempt ${retryCount + 1}/3):`, error.response?.status || error.message);
+    
+    if (retryCount < 3) {
+      const waitTime = 2000 * Math.pow(2, retryCount);
+      console.log(`⏳ Retrying in ${waitTime/1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return callPerplexity(retryCount + 1, existingTopics);
     }
+    
     throw error;
   }
 }
@@ -403,8 +415,9 @@ async function generateBlog() {
 
   let slug = trend.slug || slugify(trend.title);
   if (existing.has(slug)) {
-    const timestamp = Date.now().toString().slice(-5);
-    slug = `${slug}-${timestamp}`;
+    // Use random string instead of timestamp for shorter, cleaner slugs
+    const randomSuffix = (Math.random() + 1).toString(36).substring(2, 8);
+    slug = `${slug}-${randomSuffix}`;
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
