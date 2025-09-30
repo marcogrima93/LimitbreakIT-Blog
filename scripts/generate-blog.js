@@ -255,9 +255,10 @@ STRUCTURE EACH SECTION:
 
 **First main section** (250-300 words)
 Tell the story chronologically. Use **bold** for key facts, numbers, companies, and dates.
-- Start with what happened
+- Start with what happened - cite your source (The Verge, Bloomberg, etc.)
 - Who's affected and how many people/systems
 - Include **specific numbers** (dollars, users, time)
+- Mention the primary keyword naturally in this section
 - Add {{image:...}} at the end of this section (ONLY 1 image total in the body)
 
 **Second main section** (250-300 words)  
@@ -268,6 +269,7 @@ Explain why this matters. Start with a strong transition like "Here's why this m
   - Impact on industry/competitors  
   - Impact on security/trust/regulation
 - Consider adding a comparison table (max 1 table per article)
+- Use a ### **subsection header** ONLY if this section is very complex and needs breaking down
 
 **Third main section** (200-250 words)
 Explain the technical reality in plain English.
@@ -275,9 +277,6 @@ Explain the technical reality in plain English.
 - Use analogies ("Think of it like...")
 - Break into short paragraphs
 - NO additional images here
-
-**Optional subsection with ### header**
-If relevant, add a subsection about business implications with bullet points.
 
 **Fourth main section** (150-200 words)
 What happens next. Start with "So where does this go from here?"
@@ -288,28 +287,36 @@ What happens next. Start with "So where does this go from here?"
 
 **Final section** (100-150 words)
 The bottom line. Start with "Bottom line:" or "Here's what matters:"
-*Use italics for the entire final takeaway sentence to highlight it in blue.*
-Use **bold** within that italic sentence for extra emphasis on key terms.
+*Use italics for the entire final takeaway sentence - DO NOT use bold inside the italic sentence.*
+Example: *This is the key takeaway that everyone needs to understand right now.*
 
 COMPLETE JSON RESPONSE:
 
 {
-  "title": "Punchy title with hook (50-65 chars, NO COLONS)",
-  "slug": "url-friendly-slug",
-  "excerpt": "Compelling hook (140-160 chars, NO COLONS)",
-  "content": "Full markdown article with proper formatting",
+  "title": "Keyword-rich title (50-65 chars, NO COLONS, include primary keyword)",
+  "slug": "url-friendly-slug-with-primary-keyword",
+  "excerpt": "Compelling hook with primary keyword (140-160 chars, NO COLONS)",
+  "content": "Full markdown article following structure above",
   "category": "Your chosen category",
-  "categoryReasoning": "Why you chose this category",
-  "tags": ["Specific", "Searchable", "Tags", "Not", "Generic"],
+  "categoryReasoning": "Brief explanation of why this category fits best",
+  "tags": ["Specific", "Searchable", "Tags", "Like iPhone17", "Not Generic"],
   "featured": true or false,
-  "featuredReasoning": "Why this deserves featured status or not",
-  "metaTitle": "SEO optimized (50-60 chars, NO COLONS)",
-  "metaDescription": "Clear benefit/hook (150-160 chars, NO COLONS)",
-  "keywords": ["primary-keyword", "secondary-keyword", "long-tail-phrase"],
+  "featuredReasoning": "Why this deserves featured status or not based on trend score, reach, breaking news value, significance",
+  "metaTitle": "SEO title with primary keyword (50-60 chars, NO COLONS)",
+  "metaDescription": "Benefit/hook with primary keyword (150-160 chars, NO COLONS)",
+  "keywords": ["primary-keyword-phrase", "secondary-keyword", "long-tail-search-phrase"],
   "image": "/images/blog/descriptive-file-name.jpg",
-  "author": "LimitBreakIT Security Insights Team" or "LimitBreakIT Innovation Team" or "LimitBreakIT Tech Insights Team" (choose based on topic),
-  "trendScore": 75
-}`;
+  "author": "LimitBreakIT Security Insights Team" OR "LimitBreakIT Innovation Team" OR "LimitBreakIT Tech Insights Team" (choose based on topic),
+  "trendScore": 75,
+  "sources": "Mention 1-2 credible sources you referenced (e.g., 'The Verge, Bloomberg')"
+}
+
+🚨 FINAL REMINDERS:
+- Return ONLY the JSON object - no commentary before or after
+- Enforce character limits strictly (truncate at word boundaries if needed)
+- Primary keyword must appear in title, excerpt, metaTitle, and opening paragraph
+- DO NOT invent facts - only cite real, verifiable information
+- Mention at least one credible news source in your content`;
 
   try {
     const { data } = await axios.post(
