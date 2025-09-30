@@ -329,7 +329,7 @@ COMPLETE JSON RESPONSE:
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: 'sonar',
+        model: 'sonar-pro',
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user }
