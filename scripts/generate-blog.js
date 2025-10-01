@@ -9,12 +9,13 @@ const yaml = require('js-yaml');
 // ============================================================================
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // Get free at unsplash.com/developers
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
-const FEATURED_THRESHOLD = 70; // AI will decide featured status based on reasoning
+const FEATURED_THRESHOLD = 70;
 const MIN_WORD_COUNT = 500;
 const MIN_SUBHEADINGS = 3;
-const EXISTING_POSTS_CACHE = []; // Will store titles/topics from website
+const EXISTING_POSTS_CACHE = [];
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -186,6 +187,76 @@ function injectMidImage(md) {
 
   const imgTag = '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
   return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
+}
+
+// ============================================================================
+// IMAGE FETCHING
+// ============================================================================
+
+async function fetchUnsplashImage(keywords, category, title) {
+  if (!UNSPLASH_ACCESS_KEY) {
+    console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - using placeholder image');
+    return null;
+  }
+
+  try {
+    // Build smart search query from keywords and category
+    const searchTerms = [
+      category.toLowerCase(),
+      ...keywords.slice(0, 2)
+    ].join(' ');
+
+    console.log(`🖼️  Searching Unsplash for: "${searchTerms}"`);
+
+    const { data } = await axios.get('https://api.unsplash.com/search/photos', {
+      params: {
+        query: searchTerms,
+        per_page: 1,
+        orientation: 'landscape',
+        content_filter: 'high' // Family-friendly only
+      },
+      headers: {
+        'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}`
+      },
+      timeout: 10000
+    });
+
+    if (data.results && data.results.length > 0) {
+      const photo = data.results[0];
+      
+      // Use Unsplash's built-in image optimization
+      // w=800&h=450&fit=crop gives us perfect blog header size
+      const optimizedUrl = `${photo.urls.raw}&w=800&h=450&fit=crop&q=80`;
+      
+      console.log(`✓ Found image by ${photo.user.name}`);
+      
+      return {
+        url: optimizedUrl,
+        alt: photo.alt_description || `${title} - ${category} technology`,
+        credit: `Photo by ${photo.user.name} on Unsplash`,
+        downloadLocation: photo.links.download_location // Required by Unsplash API terms
+      };
+    }
+
+    console.warn('⚠️  No Unsplash images found for query');
+    return null;
+  } catch (error) {
+    console.warn(`⚠️  Unsplash API error: ${error.message}`);
+    return null;
+  }
+}
+
+async function triggerUnsplashDownload(downloadLocation) {
+  // Required by Unsplash API terms - triggers download tracking
+  if (!downloadLocation || !UNSPLASH_ACCESS_KEY) return;
+  
+  try {
+    await axios.get(downloadLocation, {
+      headers: { 'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}` }
+    });
+  } catch (_) {
+    // Silent fail - not critical
+  }
 }
 
 // ============================================================================
@@ -511,10 +582,32 @@ async function generateBlog() {
 
   let slug = trend.slug || slugify(trend.title);
   if (existing.has(slug)) {
-    // Use random string instead of timestamp for shorter, cleaner slugs
     const randomSuffix = (Math.random() + 1).toString(36).substring(2, 8);
     slug = `${slug}-${randomSuffix}`;
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
+  }
+
+  // Fetch optimized image from Unsplash
+  let imageUrl = `/images/blog/${slug}.jpg`; // Fallback
+  let imageCredit = null;
+  
+  console.log('\n🖼️  Fetching blog header image...');
+  const imageData = await fetchUnsplashImage(
+    trend.keywords || [],
+    trend.category,
+    trend.title
+  );
+  
+  if (imageData) {
+    imageUrl = imageData.url;
+    imageCredit = imageData.credit;
+    
+    // Trigger Unsplash download (required by API terms)
+    await triggerUnsplashDownload(imageData.downloadLocation);
+    
+    console.log(`✓ Using Unsplash image: ${imageUrl}`);
+  } else {
+    console.warn(`⚠️  Using fallback image path: ${imageUrl}`);
   }
 
   let content = stripFootnotes(trend.content || '');
@@ -522,6 +615,11 @@ async function generateBlog() {
   // Don't inject mid-image if AI already added inline images
   if (!content.includes('{{image:')) {
     content = injectMidImage(content);
+  }
+  
+  // Add image credit at the end if using Unsplash
+  if (imageCredit) {
+    content += `\n\n---\n\n*${imageCredit}*`;
   }
 
   const frontmatter = {
@@ -532,7 +630,7 @@ async function generateBlog() {
     author: trend.author || 'LimitBreakIT Team',
     category: trend.category || 'Innovation',
     tags: trend.tags || [],
-    image: trend.image || `/images/blog/${slug}.jpg`,
+    image: imageUrl, // Now uses Unsplash URL or fallback
     featured,
     metaTitle: trend.metaTitle || trend.title,
     metaDescription: trend.metaDescription || trend.excerpt,
@@ -555,6 +653,7 @@ async function generateBlog() {
   console.log(`📁  Location: ${filePath}`);
   console.log(`🏷️   Category: ${frontmatter.category}`);
   console.log(`🔖  Tags: ${frontmatter.tags.join(', ')}`);
+  console.log(`🖼️  Image: ${imageUrl.substring(0, 60)}...`);
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
 }
 
@@ -566,6 +665,11 @@ async function generateBlog() {
   try {
     if (!PERPLEXITY_API_KEY) {
       throw new Error('PERPLEXITY_API_KEY environment variable is not set');
+    }
+
+    if (!UNSPLASH_ACCESS_KEY) {
+      console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - will use placeholder images');
+      console.warn('   Get free key at: https://unsplash.com/developers\n');
     }
 
     await generateBlog();
