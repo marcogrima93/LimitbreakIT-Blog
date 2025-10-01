@@ -39,6 +39,11 @@ function stripFootnotes(markdown) {
   return markdown.replace(/\[\d{1,4}\]/g, '');
 }
 
+function stripAIImages(markdown) {
+  // Remove any {{image:...}} tags that the AI might have added
+  return markdown.replace(/\{\{image:[^}]+\}\}/g, '');
+}
+
 function countWords(text) {
   return text.split(/\s+/).filter(w => w.length > 0).length;
 }
@@ -296,7 +301,7 @@ CRITICAL FORMATTING RULES:
 - ### **Subheader** = subsections within main sections
 - Tables for comparisons using | markdown syntax
 - Bullet points with - for lists
-- {{image: /images/blog/descriptive-name.jpg, width: 600, height: 400, alt: "Description"}} = inline images after major sections
+- DO NOT add any {{image:...}} tags - images will be handled automatically
 
 FORMATTING REQUIREMENTS:
 ✓ SHORT paragraphs (2-4 sentences max)
@@ -304,7 +309,6 @@ FORMATTING REQUIREMENTS:
 ✓ Use **bold** liberally (8-12 times per article)
 ✓ Use *italics* for quotes or subtle emphasis (3-5 times)
 ✓ Include 1-2 tables if comparing data/systems/options
-✓ Add 1-2 inline images using {{image:...}} syntax
 ✓ Use bullet points for lists of impacts/features/concerns
 ✓ Include specific numbers with **bold** emphasis
 
@@ -406,7 +410,7 @@ For a product launch, headers might be:
 
 STRUCTURE EACH SECTION:
 
-IMPORTANT: Do NOT follow a rigid template. Adapt your structure to fit the story. Not every article needs a table or image in the same place. Be flexible and natural.
+IMPORTANT: Do NOT follow a rigid template. Adapt your structure to fit the story. Not every article needs a table in the same place. Be flexible and natural.
 
 **Opening paragraph** (2-4 sentences, no heading)
 Lead with the most shocking fact. Make it punchy and specific to this story.
@@ -439,8 +443,6 @@ For BUSINESS/FUNDING stories:
 
 FORMATTING FLEXIBILITY:
 
-**Images**: Add 1 image where it makes sense visually - usually after first or second section, NOT always in the same spot. Skip if story doesn't need it.
-
 **Tables**: Only use if you're comparing data, systems, or options. Many stories don't need tables - don't force it.
 
 **Bullet points**: Use when listing multiple impacts, features, or concerns. But also use regular paragraphs when appropriate.
@@ -461,7 +463,7 @@ COMPLETE JSON RESPONSE:
   "title": "Keyword-rich title (50-65 chars, NO COLONS, include primary keyword)",
   "slug": "url-friendly-slug-with-primary-keyword",
   "excerpt": "Compelling hook with primary keyword (140-160 chars, NO COLONS)",
-  "content": "Full markdown article following structure above",
+  "content": "Full markdown article following structure above - DO NOT include {{image:...}} tags",
   "category": "Your chosen category",
   "categoryReasoning": "Brief explanation of why this category fits best",
   "tags": ["Specific", "Searchable", "Tags", "Like iPhone17", "Not Generic"],
@@ -483,7 +485,8 @@ COMPLETE JSON RESPONSE:
 - NEVER fabricate numbers, CVE IDs, or user counts - write "Data not yet available" if unconfirmed
 - Excerpt and metaDescription must read like natural hooks, NOT keyword spam
 - Cite at least 2 sources: one technical (BleepingComputer, SecurityWeek) AND one mainstream (Bloomberg, Wired, The Verge)
-- If uncertain about any technical detail, explicitly state uncertainty rather than inventing facts`;
+- If uncertain about any technical detail, explicitly state uncertainty rather than inventing facts
+- DO NOT include any {{image:...}} tags in the content - they will be added automatically`;
 
   try {
     // Log the prompts before sending
@@ -628,9 +631,15 @@ async function generateBlog() {
     imageUrl = `/images/blog/${slug}.jpg`; // Fallback
   }
 
+  let content = stripFootnotes(trend.content || '');
+
+  // Strip any AI-generated image tags so we can inject Unsplash images
+  content = stripAIImages(content);
+  console.log('✓ Stripped AI-generated image tags from content');
+
   // Fetch inline/adhoc image if content is long enough (800x450)
-  const wordCount = countWords(trend.content || '');
-  if (wordCount >= 800 && !trend.content.includes('{{image:')) {
+  const wordCount = countWords(content);
+  if (wordCount >= 800) {
     console.log('🖼️  Fetching inline image (800x450)...');
     const inlineImageData = await fetchUnsplashImage(
       trend.keywords || [],
@@ -643,17 +652,13 @@ async function generateBlog() {
       inlineImageUrl = inlineImageData.url;
       await triggerUnsplashDownload(inlineImageData.downloadLocation);
       console.log(`✓ Inline image: ${inlineImageUrl.substring(0, 80)}...`);
+      
+      // Now inject the Unsplash image
+      content = injectMidImage(content, inlineImageUrl);
+      console.log('✓ Injected inline Unsplash image into content');
     } else {
       console.warn('⚠️  Could not fetch inline image from Unsplash - skipping');
     }
-  }
-
-  let content = stripFootnotes(trend.content || '');
-
-  // Inject inline image ONLY if we successfully got one from Unsplash
-  if (inlineImageUrl && !content.includes('{{image:')) {
-    content = injectMidImage(content, inlineImageUrl);
-    console.log('✓ Injected inline Unsplash image into content');
   }
 
   // Add image credit at the end if using Unsplash
