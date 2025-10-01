@@ -396,6 +396,17 @@ COMPLETE JSON RESPONSE:
 - Mention at least one credible news source in your content`;
 
   try {
+    // Log the prompts before sending
+    console.log('\n' + '='.repeat(80));
+    console.log('📤  SYSTEM PROMPT BEING SENT TO PERPLEXITY:');
+    console.log('='.repeat(80));
+    console.log(system);
+    console.log('\n' + '='.repeat(80));
+    console.log('📤  USER PROMPT BEING SENT TO PERPLEXITY:');
+    console.log('='.repeat(80));
+    console.log(user);
+    console.log('='.repeat(80) + '\n');
+
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
