@@ -238,19 +238,18 @@ YAML HEADER RULES:
 Return ONLY valid JSON (no markdown wrappers).`;
 
   const existingTopicsList = existingTopics.length > 0 
-    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL: You MUST choose a COMPLETELY DIFFERENT story. Check if your chosen topic is similar to any above. If it overlaps in subject matter, pick something else.`
+    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL DUPLICATE DETECTION:\n- Use fuzzy matching to detect duplicates even if titles differ slightly\n- Example: "Meta Glasses" vs "Meta's $799 Smart Glasses" = DUPLICATE\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE\n- Check for overlap in: companies mentioned, technology type, or incident type`
     : '';
 
-  const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.
-
-DUPLICATE CHECK: Before finalizing your choice, verify it's NOT covered in the existing posts list below. If the topic is similar or overlaps, CHOOSE A DIFFERENT STORY.${existingTopicsList}
+  const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.${existingTopicsList}
 
 CRITICAL RESEARCH REQUIREMENTS:
 - Search for TECHNICAL DETAILS and specific attack vectors - don't just summarize press releases
 - Look for security researcher reports, CVE databases, technical blogs (Krebs, BleepingComputer, SecurityWeek)
 - If it's a cyberattack, find out HOW they got in (specific vulnerability, which system, which CVE)
-- Cite SPECIFIC technical sources, not just mainstream news
-- If technical details aren't available, explicitly state "Technical details not yet disclosed" - DO NOT speculate
+- YOU MUST cite at least 2 sources: one technical source AND one mainstream outlet
+- If technical details aren't available, explicitly write "Technical details not yet disclosed" - DO NOT speculate
+- If a specific number (users affected, dollar amount, CVE ID) cannot be confirmed, write "Data not yet available" - NEVER fabricate numbers
 
 WHAT MAKES A STORY HOT:
 ✅ **Cyberattacks** - Especially ones hitting major companies, infrastructure, or millions of users
@@ -392,8 +391,10 @@ COMPLETE JSON RESPONSE:
 - Return ONLY the JSON object - no commentary before or after
 - Enforce character limits strictly (truncate at word boundaries if needed)
 - Primary keyword must appear in title, excerpt, metaTitle, and opening paragraph
-- DO NOT invent facts - only cite real, verifiable information
-- Mention at least one credible news source in your content`;
+- NEVER fabricate numbers, CVE IDs, or user counts - write "Data not yet available" if unconfirmed
+- Excerpt and metaDescription must read like natural hooks, NOT keyword spam
+- Cite at least 2 sources: one technical (BleepingComputer, SecurityWeek) AND one mainstream (Bloomberg, Wired, The Verge)
+- If uncertain about any technical detail, explicitly state uncertainty rather than inventing facts`;
 
   try {
     // Log the prompts before sending
