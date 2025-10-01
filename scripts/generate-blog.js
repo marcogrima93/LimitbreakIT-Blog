@@ -176,7 +176,7 @@ async function fetchExistingSlugs() {
   return slugs;
 }
 
-function injectMidImage(md) {
+function injectMidImage(md, imageUrl, slug) {
   const words = md.split(/\s+/);
   if (words.length < 800) return md;
 
@@ -185,7 +185,11 @@ function injectMidImage(md) {
   const firstH2 = md.indexOf('\n', idx);
   if (firstH2 === -1) return md;
 
-  const imgTag = '\n\n{{image: /images/blog/ai-tools-comparison-chart.jpg, width: 600, height: 400, alt: "Comparison of AI creative tools"}}\n';
+  // Use the provided Unsplash image URL or fallback
+  const imgTag = imageUrl 
+    ? `\n\n{{image: ${imageUrl}, width: 800, height: 450, alt: "Article illustration"}}\n`
+    : `\n\n{{image: /images/blog/${slug}-inline.jpg, width: 800, height: 450, alt: "Article illustration"}}\n`;
+  
   return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
 }
 
@@ -193,7 +197,7 @@ function injectMidImage(md) {
 // IMAGE FETCHING
 // ============================================================================
 
-async function fetchUnsplashImage(keywords, category, title) {
+async function fetchUnsplashImage(keywords, category, title, size = 'header') {
   if (!UNSPLASH_ACCESS_KEY) {
     console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - using placeholder image');
     return null;
@@ -206,14 +210,14 @@ async function fetchUnsplashImage(keywords, category, title) {
       ...keywords.slice(0, 2)
     ].join(' ');
 
-    console.log(`🖼️  Searching Unsplash for: "${searchTerms}"`);
+    console.log(`🖼️  Searching Unsplash for: "${searchTerms}" (${size})`);
 
     const { data } = await axios.get('https://api.unsplash.com/search/photos', {
       params: {
         query: searchTerms,
         per_page: 1,
         orientation: 'landscape',
-        content_filter: 'high' // Family-friendly only
+        content_filter: 'high'
       },
       headers: {
         'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}`
@@ -224,17 +228,28 @@ async function fetchUnsplashImage(keywords, category, title) {
     if (data.results && data.results.length > 0) {
       const photo = data.results[0];
       
-      // Use Unsplash's built-in image optimization
-      // w=800&h=450&fit=crop gives us perfect blog header size
-      const optimizedUrl = `${photo.urls.raw}&w=800&h=450&fit=crop&q=80`;
+      // Use different sizes based on usage
+      let width, height;
+      if (size === 'header') {
+        width = 1200;
+        height = 600;
+      } else { // adhoc/inline images
+        width = 800;
+        height = 450;
+      }
       
-      console.log(`✓ Found image by ${photo.user.name}`);
+      // Use Unsplash's built-in image optimization
+      const optimizedUrl = `${photo.urls.raw}&w=${width}&h=${height}&fit=crop&q=80`;
+      
+      console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height})`);
       
       return {
         url: optimizedUrl,
         alt: photo.alt_description || `${title} - ${category} technology`,
         credit: `Photo by ${photo.user.name} on Unsplash`,
-        downloadLocation: photo.links.download_location // Required by Unsplash API terms
+        downloadLocation: photo.links.download_location,
+        width,
+        height
       };
     }
 
@@ -589,32 +604,51 @@ async function generateBlog() {
 
   // Fetch optimized image from Unsplash
   let imageUrl = `/images/blog/${slug}.jpg`; // Fallback
+  let inlineImageUrl = null;
   let imageCredit = null;
   
-  console.log('\n🖼️  Fetching blog header image...');
+  console.log('\n🖼️  Fetching blog header image (1200x600)...');
   const imageData = await fetchUnsplashImage(
     trend.keywords || [],
     trend.category,
-    trend.title
+    trend.title,
+    'header' // 1200x600 for main header
   );
   
   if (imageData) {
     imageUrl = imageData.url;
     imageCredit = imageData.credit;
-    
-    // Trigger Unsplash download (required by API terms)
     await triggerUnsplashDownload(imageData.downloadLocation);
-    
-    console.log(`✓ Using Unsplash image: ${imageUrl}`);
+    console.log(`✓ Header image: ${imageUrl.substring(0, 60)}...`);
   } else {
-    console.warn(`⚠️  Using fallback image path: ${imageUrl}`);
+    console.warn(`⚠️  Using fallback header image: ${imageUrl}`);
+  }
+
+  // Fetch inline/adhoc image if content is long enough
+  const wordCount = countWords(trend.content || '');
+  if (wordCount >= 800 && !trend.content.includes('{{image:')) {
+    console.log('🖼️  Fetching inline image (800x450)...');
+    const inlineImageData = await fetchUnsplashImage(
+      trend.keywords || [],
+      trend.category,
+      trend.title,
+      'inline' // 800x450 for inline
+    );
+    
+    if (inlineImageData) {
+      inlineImageUrl = inlineImageData.url;
+      await triggerUnsplashDownload(inlineImageData.downloadLocation);
+      console.log(`✓ Inline image: ${inlineImageUrl.substring(0, 60)}...`);
+    }
   }
 
   let content = stripFootnotes(trend.content || '');
   
-  // Don't inject mid-image if AI already added inline images
-  if (!content.includes('{{image:')) {
-    content = injectMidImage(content);
+  // Inject inline image if we got one and AI didn't add images
+  if (inlineImageUrl && !content.includes('{{image:')) {
+    content = injectMidImage(content, inlineImageUrl, slug);
+  } else if (!content.includes('{{image:')) {
+    content = injectMidImage(content, null, slug); // Uses fallback
   }
   
   // Add image credit at the end if using Unsplash
