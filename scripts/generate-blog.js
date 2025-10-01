@@ -88,16 +88,16 @@ async function fetchExistingSlugs() {
     for (const file of files.filter(f => f.endsWith('.md'))) {
       const slug = file.replace('.md', '');
       slugs.add(slug);
-      
+
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
-        
+
         // Extract title from frontmatter
         const titleMatch = content.match(/^title:\s*(.+)$/m);
         if (titleMatch) {
           posts.push(titleMatch[1].trim());
         }
-        
+
         // Also extract keywords and tags to get better topic coverage
         const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
         if (excerptMatch) {
@@ -115,14 +115,14 @@ async function fetchExistingSlugs() {
   // Method 2: Scrape website blog list
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
-    
+
     // Extract slugs from links
     const slugMatches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
     slugMatches.forEach(match => {
       const slug = match.split('/').pop();
       if (slug && slug.length > 5) slugs.add(slug);
     });
-    
+
     // Try multiple methods to extract titles
     // Method A: Look for article titles in various HTML structures
     const titlePatterns = [
@@ -132,7 +132,7 @@ async function fetchExistingSlugs() {
       /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/span>/gi,
       /<div[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/div>/gi
     ];
-    
+
     titlePatterns.forEach(pattern => {
       const matches = html.matchAll(pattern);
       for (const match of matches) {
@@ -142,7 +142,7 @@ async function fetchExistingSlugs() {
         }
       }
     });
-    
+
     // Method B: Extract from JSON-LD if present
     const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/s);
     if (jsonLdMatch) {
@@ -158,7 +158,7 @@ async function fetchExistingSlugs() {
         }
       } catch (_) {}
     }
-    
+
     console.log(`✓ Found ${slugMatches.length} remote slugs`);
   } catch (err) {
     console.warn(`⚠️  Could not fetch website: ${err.message}`);
@@ -168,15 +168,15 @@ async function fetchExistingSlugs() {
   const uniquePosts = [...new Set(posts)]
     .filter(p => p.length > 15 && p.length < 150)
     .map(p => p.replace(/\s+/g, ' ').trim());
-  
+
   EXISTING_POSTS_CACHE.push(...uniquePosts);
-  
+
   console.log(`✓ Extracted ${uniquePosts.length} unique post topics for duplicate detection`);
-  
+
   return slugs;
 }
 
-function injectMidImage(md, imageUrl, slug) {
+function injectMidImage(md, imageUrl) {
   const words = md.split(/\s+/);
   if (words.length < 800) return md;
 
@@ -185,11 +185,14 @@ function injectMidImage(md, imageUrl, slug) {
   const firstH2 = md.indexOf('\n', idx);
   if (firstH2 === -1) return md;
 
-  // Use the provided Unsplash image URL or fallback
-  const imgTag = imageUrl 
-    ? `\n\n{{image: ${imageUrl}, width: 800, height: 450, alt: "Article illustration"}}\n`
-    : `\n\n{{image: /images/blog/${slug}-inline.jpg, width: 800, height: 450, alt: "Article illustration"}}\n`;
-  
+  // Use the provided Unsplash image URL - no fallback to local files
+  if (!imageUrl) {
+    console.warn('⚠️  No inline image URL provided, skipping inline image');
+    return md;
+  }
+
+  const imgTag = `\n\n{{image: ${imageUrl}, width: 800, height: 450, alt: "Article illustration"}}\n`;
+
   return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
 }
 
@@ -199,7 +202,7 @@ function injectMidImage(md, imageUrl, slug) {
 
 async function fetchUnsplashImage(keywords, category, title, size = 'header') {
   if (!UNSPLASH_ACCESS_KEY) {
-    console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - using placeholder image');
+    console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - cannot fetch images');
     return null;
   }
 
@@ -227,7 +230,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
 
     if (data.results && data.results.length > 0) {
       const photo = data.results[0];
-      
+
       // Use different sizes based on usage
       let width, height;
       if (size === 'header') {
@@ -237,12 +240,12 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
         width = 800;
         height = 450;
       }
-      
+
       // Use Unsplash's built-in image optimization
       const optimizedUrl = `${photo.urls.raw}&w=${width}&h=${height}&fit=crop&q=80`;
-      
+
       console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height})`);
-      
+
       return {
         url: optimizedUrl,
         alt: photo.alt_description || `${title} - ${category} technology`,
@@ -264,7 +267,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
 async function triggerUnsplashDownload(downloadLocation) {
   // Required by Unsplash API terms - triggers download tracking
   if (!downloadLocation || !UNSPLASH_ACCESS_KEY) return;
-  
+
   try {
     await axios.get(downloadLocation, {
       headers: { 'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}` }
@@ -515,15 +518,15 @@ COMPLETE JSON RESPONSE:
     );
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
-    
+
     // Strip any markdown wrappers
-    raw = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    raw = raw.replace(/``````/g, '').trim();
 
     const result = JSON.parse(raw);
-    
+
     const wordCount = countWords(result.content || '');
     const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
-    
+
     if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
       if (retryCount < 3) {
         const waitTime = 2000 * Math.pow(2, retryCount); // Exponential backoff: 2s, 4s, 8s
@@ -532,18 +535,18 @@ COMPLETE JSON RESPONSE:
         return callPerplexity(retryCount + 1, existingTopics);
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error(`❌ API Error (attempt ${retryCount + 1}/3):`, error.response?.status || error.message);
-    
+
     if (retryCount < 3) {
       const waitTime = 2000 * Math.pow(2, retryCount);
       console.log(`⏳ Retrying in ${waitTime/1000}s...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
       return callPerplexity(retryCount + 1, existingTopics);
     }
-    
+
     throw error;
   }
 }
@@ -602,29 +605,30 @@ async function generateBlog() {
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
-  // Fetch optimized image from Unsplash
-  let imageUrl = `/images/blog/${slug}.jpg`; // Fallback
+  // Fetch optimized header image from Unsplash (1200x600)
+  let imageUrl = null;
   let inlineImageUrl = null;
   let imageCredit = null;
-  
+
   console.log('\n🖼️  Fetching blog header image (1200x600)...');
   const imageData = await fetchUnsplashImage(
     trend.keywords || [],
     trend.category,
     trend.title,
-    'header' // 1200x600 for main header
+    'header'
   );
-  
+
   if (imageData) {
     imageUrl = imageData.url;
     imageCredit = imageData.credit;
     await triggerUnsplashDownload(imageData.downloadLocation);
-    console.log(`✓ Header image: ${imageUrl.substring(0, 60)}...`);
+    console.log(`✓ Header image: ${imageUrl.substring(0, 80)}...`);
   } else {
-    console.warn(`⚠️  Using fallback header image: ${imageUrl}`);
+    console.warn('⚠️  Could not fetch header image from Unsplash');
+    imageUrl = `/images/blog/${slug}.jpg`; // Fallback
   }
 
-  // Fetch inline/adhoc image if content is long enough
+  // Fetch inline/adhoc image if content is long enough (800x450)
   const wordCount = countWords(trend.content || '');
   if (wordCount >= 800 && !trend.content.includes('{{image:')) {
     console.log('🖼️  Fetching inline image (800x450)...');
@@ -632,25 +636,26 @@ async function generateBlog() {
       trend.keywords || [],
       trend.category,
       trend.title,
-      'inline' // 800x450 for inline
+      'inline'
     );
-    
+
     if (inlineImageData) {
       inlineImageUrl = inlineImageData.url;
       await triggerUnsplashDownload(inlineImageData.downloadLocation);
-      console.log(`✓ Inline image: ${inlineImageUrl.substring(0, 60)}...`);
+      console.log(`✓ Inline image: ${inlineImageUrl.substring(0, 80)}...`);
+    } else {
+      console.warn('⚠️  Could not fetch inline image from Unsplash - skipping');
     }
   }
 
   let content = stripFootnotes(trend.content || '');
-  
-  // Inject inline image if we got one and AI didn't add images
+
+  // Inject inline image ONLY if we successfully got one from Unsplash
   if (inlineImageUrl && !content.includes('{{image:')) {
-    content = injectMidImage(content, inlineImageUrl, slug);
-  } else if (!content.includes('{{image:')) {
-    content = injectMidImage(content, null, slug); // Uses fallback
+    content = injectMidImage(content, inlineImageUrl);
+    console.log('✓ Injected inline Unsplash image into content');
   }
-  
+
   // Add image credit at the end if using Unsplash
   if (imageCredit) {
     content += `\n\n---\n\n*${imageCredit}*`;
@@ -664,7 +669,7 @@ async function generateBlog() {
     author: trend.author || 'LimitBreakIT Team',
     category: trend.category || 'Innovation',
     tags: trend.tags || [],
-    image: imageUrl, // Now uses Unsplash URL or fallback
+    image: imageUrl, // Uses Unsplash URL or fallback
     featured,
     metaTitle: trend.metaTitle || trend.title,
     metaDescription: trend.metaDescription || trend.excerpt,
@@ -687,7 +692,10 @@ async function generateBlog() {
   console.log(`📁  Location: ${filePath}`);
   console.log(`🏷️   Category: ${frontmatter.category}`);
   console.log(`🔖  Tags: ${frontmatter.tags.join(', ')}`);
-  console.log(`🖼️  Image: ${imageUrl.substring(0, 60)}...`);
+  console.log(`🖼️  Header image: ${imageUrl.substring(0, 80)}...`);
+  if (inlineImageUrl) {
+    console.log(`🖼️  Inline image: ${inlineImageUrl.substring(0, 80)}...`);
+  }
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
 }
 
