@@ -81,41 +81,97 @@ async function fetchExistingSlugs() {
   const slugs = new Set();
   const posts = [];
 
+  // Method 1: Read local Posts directory
   try {
     const files = await fs.readdir(POSTS_DIR);
     for (const file of files.filter(f => f.endsWith('.md'))) {
-      slugs.add(file.replace('.md', ''));
+      const slug = file.replace('.md', '');
+      slugs.add(slug);
+      
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
+        
+        // Extract title from frontmatter
         const titleMatch = content.match(/^title:\s*(.+)$/m);
-        if (titleMatch) posts.push(titleMatch[1].trim());
+        if (titleMatch) {
+          posts.push(titleMatch[1].trim());
+        }
+        
+        // Also extract keywords and tags to get better topic coverage
+        const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
+        if (excerptMatch) {
+          posts.push(excerptMatch[1].trim());
+        }
       } catch (err) {
         console.warn(`⚠️  Failed to read ${file}: ${err.message}`);
       }
     }
+    console.log(`✓ Found ${files.length} local posts`);
   } catch (_) {
-    // Directory doesn't exist yet - that's fine
+    console.log('⚠️  Posts directory not found - checking website only');
   }
 
+  // Method 2: Scrape website blog list
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
-    const matches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
-    matches.forEach(match => {
+    
+    // Extract slugs from links
+    const slugMatches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
+    slugMatches.forEach(match => {
       const slug = match.split('/').pop();
-      if (slug) slugs.add(slug);
+      if (slug && slug.length > 5) slugs.add(slug);
     });
     
-    // Extract titles from page
-    const titleMatches = html.match(/<h[2-3][^>]*>([^<]+)<\/h[2-3]>/g) || [];
-    titleMatches.forEach(match => {
-      const title = match.replace(/<[^>]+>/g, '').trim();
-      if (title.length > 10) posts.push(title);
+    // Try multiple methods to extract titles
+    // Method A: Look for article titles in various HTML structures
+    const titlePatterns = [
+      /<h[1-4][^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/h[1-4]>/gi,
+      /<h[1-4][^>]*>([^<]{20,120})<\/h[1-4]>/g,
+      /<a[^>]*href="\/insights-news\/[^"]*"[^>]*>([^<]{20,120})<\/a>/g,
+      /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/span>/gi,
+      /<div[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/div>/gi
+    ];
+    
+    titlePatterns.forEach(pattern => {
+      const matches = html.matchAll(pattern);
+      for (const match of matches) {
+        const title = match[1].replace(/\s+/g, ' ').trim();
+        if (title.length > 15 && title.length < 150) {
+          posts.push(title);
+        }
+      }
     });
+    
+    // Method B: Extract from JSON-LD if present
+    const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/s);
+    if (jsonLdMatch) {
+      try {
+        const jsonData = JSON.parse(jsonLdMatch[1]);
+        if (jsonData.headline) posts.push(jsonData.headline);
+        if (jsonData.name) posts.push(jsonData.name);
+        if (Array.isArray(jsonData)) {
+          jsonData.forEach(item => {
+            if (item.headline) posts.push(item.headline);
+            if (item.name) posts.push(item.name);
+          });
+        }
+      } catch (_) {}
+    }
+    
+    console.log(`✓ Found ${slugMatches.length} remote slugs`);
   } catch (err) {
-    console.warn(`⚠️  Could not fetch remote slugs: ${err.message}`);
+    console.warn(`⚠️  Could not fetch website: ${err.message}`);
   }
 
-  EXISTING_POSTS_CACHE.push(...posts);
+  // Deduplicate and clean posts
+  const uniquePosts = [...new Set(posts)]
+    .filter(p => p.length > 15 && p.length < 150)
+    .map(p => p.replace(/\s+/g, ' ').trim());
+  
+  EXISTING_POSTS_CACHE.push(...uniquePosts);
+  
+  console.log(`✓ Extracted ${uniquePosts.length} unique post topics for duplicate detection`);
+  
   return slugs;
 }
 
@@ -182,10 +238,12 @@ YAML HEADER RULES:
 Return ONLY valid JSON (no markdown wrappers).`;
 
   const existingTopicsList = existingTopics.length > 0 
-    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics):\n${existingTopics.slice(0, 30).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nYou MUST choose a DIFFERENT story that hasn't been covered yet.`
+    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL: You MUST choose a COMPLETELY DIFFERENT story. Check if your chosen topic is similar to any above. If it overlaps in subject matter, pick something else.`
     : '';
 
   const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.
+
+DUPLICATE CHECK: Before finalizing your choice, verify it's NOT covered in the existing posts list below. If the topic is similar or overlaps, CHOOSE A DIFFERENT STORY.${existingTopicsList}
 
 CRITICAL RESEARCH REQUIREMENTS:
 - Search for TECHNICAL DETAILS and specific attack vectors - don't just summarize press releases
@@ -260,42 +318,54 @@ For a product launch, headers might be:
 
 STRUCTURE EACH SECTION:
 
-**First main section** (250-300 words)
-Tell the story chronologically. Use **bold** for key facts, numbers, companies, and dates.
-- Start with what happened - cite your source (The Verge, Bloomberg, etc.)
-- Who's affected and how many people/systems
-- Include **specific numbers** (dollars, users, time)
-- Mention the primary keyword naturally in this section
-- Add {{image:...}} at the end of this section (ONLY 1 image total in the body)
+IMPORTANT: Do NOT follow a rigid template. Adapt your structure to fit the story. Not every article needs a table or image in the same place. Be flexible and natural.
 
-**Second main section** (250-300 words)  
-Explain why this matters. Start with a strong transition like "Here's why this matters:" or "So what's the real story here?"
-- **Bold** key implications
-- Use bullet points for impacts:
-  - Impact on users/customers
-  - Impact on industry/competitors  
-  - Impact on security/trust/regulation
-- Consider adding a comparison table (max 1 table per article)
-- Use a ### **subsection header** ONLY if this section is very complex and needs breaking down
+**Opening paragraph** (2-4 sentences, no heading)
+Lead with the most shocking fact. Make it punchy and specific to this story.
 
-**Third main section** (200-250 words)
-Explain the technical reality in plain English.
-- Use **bold** for technical terms
-- Use analogies ("Think of it like...")
-- Break into short paragraphs
-- NO additional images here
+**Create 4-5 sections with compelling ## headers**
+Headers should be specific to YOUR story, not generic. Make readers curious.
 
-**Fourth main section** (150-200 words)
-What happens next. Start with "So where does this go from here?"
-- Open questions
-- Possible scenarios
-- What to watch for
-- Use **bold** for predictions
+STRUCTURE GUIDELINES (adapt to your story):
+
+For CYBERATTACK stories:
+- Section 1: The attack details (what happened, when, who's affected)
+- Section 2: The damage and scope (numbers, impact, victims)
+- Section 3: How they did it (technical breakdown - ONLY if details are public)
+- Section 4: What's at risk / what happens next
+- Final: Practical takeaway
+
+For PRODUCT LAUNCH stories:
+- Section 1: What's new and why it's big
+- Section 2: The technology explained
+- Section 3: Market impact / competition angle
+- Section 4: What this means for users/businesses
+- Final: Bottom line
+
+For BUSINESS/FUNDING stories:
+- Section 1: The deal details
+- Section 2: Why this matters / market context
+- Section 3: What they're building / the vision
+- Section 4: Winners and losers / competitive landscape
+- Final: What to watch
+
+FORMATTING FLEXIBILITY:
+
+**Images**: Add 1 image where it makes sense visually - usually after first or second section, NOT always in the same spot. Skip if story doesn't need it.
+
+**Tables**: Only use if you're comparing data, systems, or options. Many stories don't need tables - don't force it.
+
+**Bullet points**: Use when listing multiple impacts, features, or concerns. But also use regular paragraphs when appropriate.
+
+**Subsections (###)**: Rarely needed. Only use if a section is genuinely complex and needs breaking down.
+
+**Length per section**: 200-300 words is a guideline, not a rule. Some sections might be 150 words, others 350. Let the content dictate length.
 
 **Final section** (100-150 words)
-The bottom line. Start with "Bottom line:" or "Here's what matters:"
-*Use italics for the entire final takeaway sentence - DO NOT use bold inside the italic sentence.*
-Example: *This is the key takeaway that everyone needs to understand right now.*
+Start with "Bottom line:" or "Here's what matters:"
+*Put your key takeaway in italics as a full sentence.*
+
+BE NATURAL. Don't robotically follow templates. Every story is different - write accordingly.
 
 COMPLETE JSON RESPONSE:
 
@@ -329,7 +399,7 @@ COMPLETE JSON RESPONSE:
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user }
