@@ -3,12 +3,11 @@ name: Auto Blog Generator
 on:
   schedule:
     # Run daily at 6 AM UTC (8 AM CEST)
-    - cron: '0 6 * * *'  # Fixed: was '0 6 * **', needs 5 fields
+    - cron: '0 6 * * *'  # FIXED: needs 5 fields (min hour day month day-of-week)
   workflow_dispatch: # Allow manual trigger
 
-# Add permissions for the GITHUB_TOKEN
 permissions:
-  contents: write  # This grants write access to the repository
+  contents: write
 
 jobs:
   generate-blog:
@@ -27,12 +26,12 @@ jobs:
           node-version: '20'
       
       - name: Install dependencies
-        run: |
-          npm install axios js-yaml
+        run: npm install axios js-yaml
       
       - name: Generate blog content
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/generate-blog.js
       
