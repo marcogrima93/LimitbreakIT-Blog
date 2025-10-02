@@ -4,7 +4,7 @@ title: Amazon Unveils Kindle Scribe Colorsoft Packed With AI Features
 excerpt: Amazon just dropped the Kindle Scribe Colorsoft. It’s the first color Kindle ever—and loaded with AI that can summarize notes, answer book questions, and more.
 publishedAt: "2025-10-01"
 author: LimitBreakIT Innovation Team
-category: Innovation
+category: Innovation & Emerging Tech
 tags:
   - Kindle Scribe Colorsoft
   - AI Note Summaries
