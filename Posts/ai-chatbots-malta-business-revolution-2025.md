@@ -4,7 +4,7 @@ title: How AI Chatbots Are Revolutionizing Malta Business - €500+ Monthly Savi
 excerpt: Discover why 87% of Malta SMBs using AI chatbots report increased sales. Real case studies, implementation costs, and ROI data from Valletta to Gozo businesses.
 publishedAt: 2025-09-15
 author: LimitBreakIT AI Team
-category: AI & Automation
+category: Artificial Intelligence
 tags: [AI Chatbots Malta, WhatsApp Business, Customer Service Automation, Malta SMB, Business Growth, Tourism Technology]
 image: /images/blog/ai-chatbots-malta-business.jpg
 featured: false
