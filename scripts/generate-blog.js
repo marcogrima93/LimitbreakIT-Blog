@@ -396,7 +396,17 @@ You must intelligently decide ALL metadata fields using reasoning:
 - Industry significance (reshapes markets = featured)
 Provide your reasoning in "featuredReasoning" field.
 
-**category**: Choose the BEST fit from: Cybersecurity, AI, Cloud, DevOps, Innovation, Digital Transformation
+**category**: Choose the BEST fit from these recommended categories:
+- Artificial Intelligence
+- Cybersecurity
+- Cloud & Infrastructure
+- Digital Transformation
+- Data Protection
+- Innovation & Emerging Tech
+- DevOps & Development
+- Business Technology
+
+If none of these fit perfectly, you MAY create a new category that better matches the article's focus.
 Explain your choice in "categoryReasoning" field.
 
 **tags**: Generate 3-5 highly specific, searchable tags (not generic ones like "technology")
