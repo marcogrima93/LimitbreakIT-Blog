@@ -4,7 +4,7 @@ title: Building Secure Remote Work IT Infrastructure for Malta Teams
 excerpt: Essential guide to setting up secure and efficient remote work infrastructure for Malta businesses. Learn about VPNs, cloud solutions, and security best practices.
 publishedAt: 2023-12-20
 author: LimitBreakIT Infrastructure Team
-category: Remote Work
+category: Business Technology
 tags: [Remote Work, IT Infrastructure, VPN, Security, Malta Business]
 image: /images/blog/remote-work-infrastructure-malta.jpg
 featured: false
