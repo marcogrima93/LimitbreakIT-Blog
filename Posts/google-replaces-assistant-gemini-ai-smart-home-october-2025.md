@@ -4,7 +4,7 @@ title: Google Replaces Assistant With Gemini AI Across All Devices
 excerpt: Google is phasing out Assistant and rolling out Gemini AI on all Google Home and Nest devices, starting October 1. The smart home landscape is about to change.
 publishedAt: "2025-10-01"
 author: LimitBreakIT Tech Insights Team
-category: AI
+category: Artificial Intelligence
 tags:
   - Gemini AI
   - Google Home
