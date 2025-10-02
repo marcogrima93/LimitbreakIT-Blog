@@ -177,16 +177,19 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
 
   try {
     let searchTerms;
-    let resultIndex = 0;
+    let resultIndex = 0; // Which result to pick from the array
     
     if (customQuery) {
+      // Use AI-provided search query directly for inline images
       searchTerms = customQuery;
       console.log(`🖼️  Using AI search query: "${searchTerms}" (${size})`);
     } else if (size === 'inline') {
+      // Fallback: use different keywords to avoid header duplicate
       searchTerms = keywords.slice(1, 4).join(' ') || `${category} technology`;
-      resultIndex = 1;
+      resultIndex = 1; // Use second result if available
       console.log(`🖼️  Searching Unsplash (fallback): "${searchTerms}" (${size})`);
     } else {
+      // Header image
       searchTerms = [category.toLowerCase(), ...keywords.slice(0, 2)].join(' ');
       console.log(`🖼️  Searching Unsplash: "${searchTerms}" (${size})`);
     }
@@ -194,7 +197,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
     const { data } = await axios.get('https://api.unsplash.com/search/photos', {
       params: {
         query: searchTerms,
-        per_page: 5,
+        per_page: 5, // Get multiple results to avoid duplicates
         orientation: 'landscape',
         content_filter: 'high'
       },
@@ -205,6 +208,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
     });
 
     if (data.results && data.results.length > 0) {
+      // Pick the appropriate result (avoid duplicates for inline images)
       const photoIndex = Math.min(resultIndex, data.results.length - 1);
       const photo = data.results[photoIndex];
 
@@ -249,7 +253,8 @@ async function triggerUnsplashDownload(downloadLocation) {
   } catch (_) {}
 }
 
-async function processInlineImages(content, keywords, category, title, creditsArray = []) {
+async function processInlineImages(content, keywords, category, title) {
+  // Find all {{image:...}} tags
   const imageTagRegex = /\{\{image:\s*([^,]+),\s*width:\s*(\d+),\s*height:\s*(\d+),\s*alt:\s*"([^"]+)"\}\}/g;
   const matches = [...content.matchAll(imageTagRegex)];
 
@@ -267,21 +272,19 @@ async function processInlineImages(content, keywords, category, title, creditsAr
     
     console.log(`🖼️  AI requested image for: "${aiSearchQuery.trim()}"`);
 
+    // Use the AI's descriptive search query directly
     const imageData = await fetchUnsplashImage(
       keywords,
       category,
       title,
       'inline',
-      aiSearchQuery.trim()
+      aiSearchQuery.trim() // Pass AI's specific query
     );
 
     if (imageData) {
       await triggerUnsplashDownload(imageData.downloadLocation);
       
-      if (imageData.credit) {
-        creditsArray.push(imageData.credit);
-      }
-      
+      // Replace the {{image:...}} tag with the actual Unsplash URL
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
       updatedContent = updatedContent.replace(fullMatch, replacement);
       
@@ -296,7 +299,7 @@ async function processInlineImages(content, keywords, category, title, creditsAr
 }
 
 // ============================================================================
-// PERPLEXITY API WITH PROPER JSON SANITIZATION
+// PERPLEXITY API
 // ============================================================================
 
 async function callPerplexity(retryCount = 0, existingTopics = []) {
@@ -305,13 +308,6 @@ async function callPerplexity(retryCount = 0, existingTopics = []) {
   const system = `You are the world's best trending tech blogger. You cover EVERYTHING hot in tech - from devastating cyberattacks to game-changing product launches, from billion-dollar acquisitions to industry-shaking scandals.
 
 Your readers trust you to break down complex tech news into stories they can't stop reading. You write like a journalist at The Verge meets a cybersecurity expert - informed, punchy, and always on top of what's trending RIGHT NOW.
-
-CRITICAL JSON FORMATTING RULES:
-- Return ONLY valid JSON with properly escaped special characters
-- ALL newlines in content MUST be literal \\n characters (not actual line breaks)
-- Use standard markdown: *italic*, **bold**, ## Headers, [links](url)
-- NO literal line breaks inside JSON string values
-- Escape quotes as \\" inside string values
 
 CRITICAL FORMATTING RULES:
 - *text* = italic text for subtle emphasis or quotes
@@ -322,28 +318,23 @@ CRITICAL FORMATTING RULES:
 - Tables for comparisons using | markdown syntax
 - Bullet points with - for lists
 
-LINKS AND REFERENCES (CRITICAL):
-- You MUST include 3-5 inline links throughout the article using [text](url) format
-- Link to your actual sources when you mention them
-- Link to official product pages when mentioning products
-- Link to company websites when first mentioning companies
-- Link to security advisories when mentioning CVEs or vulnerabilities
-- NEVER use placeholder URLs like "example.com" - use real, relevant URLs from your research
-
 INLINE IMAGE TAGS:
 - You CAN and SHOULD add ONE inline image using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
 - Place it after the first ## section if the article is 800+ words
 - The search-query should be 3-6 DESCRIPTIVE keywords that accurately describe what the image should show
-- Be SPECIFIC with your search query
+- Be SPECIFIC with your search query - don't use generic terms
+- Examples:
+  * GOOD: "server room cyberattack red alert" or "folding smartphone curved display"
+  * BAD: "technology" or "security" or "innovation"
+- Think about what visual would best illustrate your article's main point
 
 FORMATTING REQUIREMENTS:
 ✓ SHORT paragraphs (2-4 sentences max)
-✓ Blank lines between paragraphs (use \\n\\n)
+✓ Blank lines between paragraphs
 ✓ Use **bold** liberally (8-12 times per article)
 ✓ Use *italics* for quotes or subtle emphasis (3-5 times)
-✓ Include 3-5 inline hyperlinks to sources [text](url)
-✓ Include 1-2 tables if comparing data
-✓ Use bullet points for lists
+✓ Include 1-2 tables if comparing data/systems/options
+✓ Use bullet points for lists of impacts/features/concerns
 ✓ Include specific numbers with **bold** emphasis
 
 VOICE: 
@@ -352,6 +343,7 @@ VOICE:
 - Short, varied sentences
 - Write like breaking news to a friend
 - Break long sentences into shorter ones - NEVER use em dashes (—)
+- Example: Change "Apple released iPhone 17 — a groundbreaking device" to "Apple released iPhone 17. It's a groundbreaking device."
 
 BANNED WORDS: "revolutionize", "game-changer", "cutting-edge", "leverage", "paradigm shift", "synergy", "disruptive", "stakeholders", "utilize", "robust", "seamless", "transformative"
 
@@ -361,42 +353,158 @@ YAML HEADER RULES:
 - Keep titles under 65 characters
 - Excerpts must be 140-160 characters
 
-🚨 CRITICAL: Return ONLY valid JSON. NO markdown code blocks. NO backticks. Just pure JSON starting with { and ending with }.`;
+Return ONLY valid JSON (no markdown code blocks, no backticks, just pure JSON starting with { and ending with }).`;
 
   const existingTopicsList = existingTopics.length > 0 
-    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL DUPLICATE DETECTION:\n- Use fuzzy matching to detect duplicates even if titles differ slightly\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE`
+    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL DUPLICATE DETECTION:\n- Use fuzzy matching to detect duplicates even if titles differ slightly\n- Example: "Meta Glasses" vs "Meta's $799 Smart Glasses" = DUPLICATE\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE\n- Check for overlap in: companies mentioned, technology type, or incident type`
     : '';
 
   const user = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.${existingTopicsList}
 
-Write 1000+ words. SHORT paragraphs (2-4 sentences). Use \\n\\n between ALL paragraphs.
+CRITICAL RESEARCH REQUIREMENTS:
+- Search for TECHNICAL DETAILS and specific attack vectors - don't just summarize press releases
+- Look for security researcher reports, CVE databases, technical blogs (Krebs, BleepingComputer, SecurityWeek)
+- If it's a cyberattack, find out HOW they got in (specific vulnerability, which system, which CVE)
+- YOU MUST cite at least 2 sources: one technical source AND one mainstream outlet
+- If technical details aren't available, explicitly write "Technical details not yet disclosed" - DO NOT speculate
+- If a specific number (users affected, dollar amount, CVE ID) cannot be confirmed, write "Data not yet available" - NEVER fabricate numbers
 
-Return this EXACT JSON structure with properly escaped content:
+WHAT MAKES A STORY HOT:
+✅ **Cyberattacks** - Especially ones hitting major companies, infrastructure, or millions of users
+✅ **Major product launches** - New iPhones, groundbreaking AI models, game-changing hardware
+✅ **Tech scandals** - Data breaches, CEO drama, company meltdowns, whistleblowers
+✅ **Billion-dollar moves** - Acquisitions, funding rounds, market crashes, bankruptcies
+✅ **Infrastructure failures** - Major outages (AWS, Google, Microsoft, etc.), system crashes
+✅ **AI breakthroughs or disasters** - New capabilities that shock people OR spectacular failures
+✅ **Regulatory bombshells** - Governments banning things, massive fines, legal battles
+✅ **Industry drama** - Layoffs, pivots, competitive battles, market shake-ups
+
+AVOID BORING STUFF:
+❌ Minor feature updates or version bumps
+❌ Routine earnings (unless there's drama)
+❌ Generic trend pieces without specific news
+❌ Press releases without substance
+
+AI REASONING FOR METADATA:
+
+You must intelligently decide ALL metadata fields using reasoning:
+
+**featuredDecision**: Evaluate if this story deserves featured status (true/false) based on:
+- Trending score (70+ = likely featured)
+- Impact scope (affects millions of users = featured)
+- Breaking news value (happening RIGHT NOW = featured)
+- Industry significance (reshapes markets = featured)
+Provide your reasoning in "featuredReasoning" field.
+
+**category**: Choose the BEST fit from these recommended categories:
+- Artificial Intelligence
+- Cybersecurity
+- Cloud & Infrastructure
+- Digital Transformation
+- Data Protection
+- Innovation & Emerging Tech
+- DevOps & Development
+- Business Technology
+
+If none of these fit perfectly, you MAY create a new category that better matches the article's focus.
+Explain your choice in "categoryReasoning" field.
+
+**tags**: Generate 3-5 highly specific, searchable tags (not generic ones like "technology")
+Examples: "Airport Hack", "ChatGPT-5", "AWS Outage", "Apple M5 Chip"
+
+**trendScore**: Rate 0-100 based on:
+- Search volume and social media buzz
+- Relevance to tech professionals and businesses  
+- Long-term significance vs flash-in-pan news
+- Number of major outlets covering it
+Be honest and conservative - not everything is 90+.
+
+WRITING INSTRUCTIONS:
+
+Write 1000+ words. SHORT paragraphs (2-4 sentences). Blank lines between ALL paragraphs.
+
+**Opening** (2-4 sentences, no heading)
+Start with a BANG. Lead with the most shocking fact or angle.
+
+GOOD: "**Heathrow Airport** went dark yesterday. Not a power failure - a cyberattack that grounded **thousands of flights** across Europe."
+BAD: "A significant security incident affected major airports..."
+
+Create 4-5 sections with ## headers. Choose headers that fit YOUR specific story - don't use generic templates. Make headers compelling and specific to the news.
+
+INLINE IMAGE PLACEMENT (IMPORTANT):
+If your article is 800+ words, add ONE inline image tag after the first ## section.
+Think carefully about what visual would best illustrate the story:
+
+For a cyberattack story:
+{{image: ransomware attack command center screen, width: 800, height: 450, alt: "Cybersecurity operations center"}}
+
+For a product launch:
+{{image: foldable smartphone unfolding display, width: 800, height: 450, alt: "Advanced smartphone technology"}}
+
+For a data breach:
+{{image: hacked database server warning lights, width: 800, height: 450, alt: "Data breach security alert"}}
+
+BE SPECIFIC with your search query - generic terms like "technology" or "security" won't work well.
+
+STRUCTURE GUIDELINES (adapt to your story):
+
+For CYBERATTACK stories:
+- Section 1: The attack details (what happened, when, who's affected)
+- Section 2: The damage and scope (numbers, impact, victims)
+- Section 3: How they did it (technical breakdown - ONLY if details are public)
+- Section 4: What's at risk / what happens next
+- Final: Practical takeaway
+
+For PRODUCT LAUNCH stories:
+- Section 1: What's new and why it's big
+- Section 2: The technology explained
+- Section 3: Market impact / competition angle
+- Section 4: What this means for users/businesses
+- Final: Bottom line
+
+For BUSINESS/FUNDING stories:
+- Section 1: The deal details
+- Section 2: Why this matters / market context
+- Section 3: What they're building / the vision
+- Section 4: Winners and losers / competitive landscape
+- Final: What to watch
+
+**Final section** (100-150 words)
+Start with "Bottom line:" or "Here's what matters:"
+*Put your key takeaway in italics as a full sentence.*
+
+COMPLETE JSON RESPONSE:
 
 {
-  "title": "Keyword-rich title (50-65 chars, NO COLONS)",
-  "slug": "url-friendly-slug",
-  "excerpt": "Compelling hook (140-160 chars, NO COLONS)",
-  "content": "Full markdown article with \\n\\n between paragraphs",
-  "category": "Best fitting category",
-  "categoryReasoning": "Why this category fits",
-  "tags": ["Specific", "Searchable", "Tags"],
-  "featured": true,
-  "featuredReasoning": "Why this is featured",
-  "metaTitle": "SEO title (50-60 chars, NO COLONS)",
-  "metaDescription": "SEO description (150-160 chars, NO COLONS)",
-  "keywords": ["primary-keyword", "secondary-keyword"],
+  "title": "Keyword-rich title (50-65 chars, NO COLONS, include primary keyword)",
+  "slug": "url-friendly-slug-with-primary-keyword",
+  "excerpt": "Compelling hook with primary keyword (140-160 chars, NO COLONS)",
+  "content": "Full markdown article - MUST include ONE {{image:...}} tag if 800+ words",
+  "category": "Your chosen category",
+  "categoryReasoning": "Brief explanation of why this category fits best",
+  "tags": ["Specific", "Searchable", "Tags", "Like iPhone17", "Not Generic"],
+  "featured": true or false,
+  "featuredReasoning": "Why this deserves featured status or not",
+  "metaTitle": "SEO title with primary keyword (50-60 chars, NO COLONS)",
+  "metaDescription": "Benefit/hook with primary keyword (150-160 chars, NO COLONS)",
+  "keywords": ["primary-keyword-phrase", "secondary-keyword", "long-tail-search-phrase"],
   "image": "/images/blog/descriptive-file-name.jpg",
-  "author": "LimitBreakIT Security Insights Team",
-  "trendScore": 85,
-  "sources": "Mention 1-2 credible sources"
+  "author": "LimitBreakIT Security Insights Team" OR "LimitBreakIT Innovation Team" OR "LimitBreakIT Tech Insights Team",
+  "trendScore": 75,
+  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')"
 }
 
-🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. Just pure JSON.`;
+🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. No commentary. Just pure JSON starting with { and ending with }.`;
 
   try {
     console.log('\n' + '='.repeat(80));
-    console.log('📤  Calling Perplexity API...');
+    console.log('📤  SYSTEM PROMPT BEING SENT TO PERPLEXITY:');
+    console.log('='.repeat(80));
+    console.log(system);
+    console.log('\n' + '='.repeat(80));
+    console.log('📤  USER PROMPT BEING SENT TO PERPLEXITY:');
+    console.log('='.repeat(80));
+    console.log(user);
     console.log('='.repeat(80) + '\n');
 
     const { data } = await axios.post(
@@ -421,10 +529,8 @@ Return this EXACT JSON structure with properly escaped content:
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
-    console.log('📥 Received response from Perplexity');
-    console.log('🔍 Raw response length:', raw.length, 'characters');
-
-    // Strip <think> tags from sonar-reasoning-pro
+    // CRITICAL: sonar-reasoning-pro returns <think>...</think> tags before JSON
+    // Strip everything before the first { and after the last }
     const jsonStart = raw.indexOf('{');
     const jsonEnd = raw.lastIndexOf('}');
     
@@ -432,55 +538,18 @@ Return this EXACT JSON structure with properly escaped content:
       raw = raw.substring(jsonStart, jsonEnd + 1);
     }
 
-    // Remove markdown wrappers
-    raw = raw.replace(/^```json\s*/i, '').replace(/^``````$/g, '').trim();
+    // Also remove any markdown wrappers
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '').trim();
 
-    console.log('✂️  Cleaned response, attempting to parse JSON...');
-
-    let result;
-    try {
-      result = JSON.parse(raw);
-      console.log('✅ Successfully parsed JSON on first attempt');
-    } catch (parseError) {
-      console.warn('⚠️  First parse failed, applying control character sanitization...');
-      console.error('Parse error:', parseError.message);
-      
-      // Show problematic area
-      const errorMatch = parseError.message.match(/position (\d+)/);
-      if (errorMatch) {
-        const pos = parseInt(errorMatch);
-        console.log('❌ Error near:', raw.substring(Math.max(0, pos - 50), pos + 50));
-      }
-
-      // Aggressive sanitization - remove ALL control characters except intentional escapes
-      raw = raw
-        .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, '') // Remove control chars
-        .replace(/\\n/g, '__NEWLINE__')  // Protect escaped newlines
-        .replace(/\\t/g, '__TAB__')       // Protect escaped tabs
-        .replace(/\\"/g, '__QUOTE__')     // Protect escaped quotes
-        .replace(/\r\n/g, ' ')            // Replace actual line breaks with spaces
-        .replace(/\n/g, ' ')
-        .replace(/\r/g, ' ')
-        .replace(/\t/g, ' ')
-        .replace(/__NEWLINE__/g, '\\n')   // Restore escaped newlines
-        .replace(/__TAB__/g, '\\t')       // Restore escaped tabs
-        .replace(/__QUOTE__/g, '\\"');    // Restore escaped quotes
-
-      console.log('🧹 Sanitized JSON (first 500 chars):', raw.substring(0, 500));
-      
-      result = JSON.parse(raw);
-      console.log('✅ Successfully parsed JSON after sanitization');
-    }
+    const result = JSON.parse(raw);
 
     const wordCount = countWords(result.content || '');
     const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
 
-    console.log(`📊 Content stats: ${wordCount} words, ${subheadings} subheadings`);
-
     if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
       if (retryCount < 3) {
         const waitTime = 2000 * Math.pow(2, retryCount);
-        console.warn(`⚠️  Response inadequate. Retrying in ${waitTime/1000}s...`);
+        console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying in ${waitTime/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return callPerplexity(retryCount + 1, existingTopics);
       }
@@ -488,11 +557,7 @@ Return this EXACT JSON structure with properly escaped content:
 
     return result;
   } catch (error) {
-    console.error(`❌ API Error (attempt ${retryCount + 1}/4):`, error.message);
-    
-    if (error instanceof SyntaxError && raw) {
-      console.error('📋 Problematic JSON (first 1000 chars):', raw.substring(0, 1000));
-    }
+    console.error(`❌ API Error (attempt ${retryCount + 1}/3):`, error.response?.status || error.message);
 
     if (retryCount < 3) {
       const waitTime = 2000 * Math.pow(2, retryCount);
@@ -557,6 +622,7 @@ async function generateBlog() {
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
+  // Fetch header image
   let imageUrl = null;
   let imageCredit = null;
 
@@ -580,23 +646,20 @@ async function generateBlog() {
 
   let content = stripFootnotes(trend.content || '');
 
+  // Process inline images from AI-generated {{image:...}} tags
   console.log('\n🖼️  Processing inline images...');
-  const inlineImageCredits = [];
-  content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title, inlineImageCredits);
+  content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title);
 
-  const allCredits = [];
-  if (imageCredit) allCredits.push(imageCredit);
-  if (inlineImageCredits.length > 0) allCredits.push(...inlineImageCredits);
-  
-  if (allCredits.length > 0) {
-    content += `\n\n---\n\n*${allCredits.join(' | ')}*`;
+  // Add image credit at the end if using Unsplash
+  if (imageCredit) {
+    content += `\n\n---\n\n*${imageCredit}*`;
   }
 
   const frontmatter = {
     slug,
     title: trend.title,
     excerpt: trend.excerpt,
-    publishedAt: new Date().toISOString().split('T'),
+    publishedAt: new Date().toISOString().split('T')[0],
     author: trend.author || 'LimitBreakIT Team',
     category: trend.category || 'Innovation',
     tags: trend.tags || [],
