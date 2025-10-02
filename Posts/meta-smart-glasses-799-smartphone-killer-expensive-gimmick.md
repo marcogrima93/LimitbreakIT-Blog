@@ -4,7 +4,7 @@ title: Meta's $799 Smart Glasses - Are They Actually Worth It?
 excerpt: Meta just dropped $799 smart glasses that read your mind (literally). Will they replace your phone or just empty your wallet? We break down everything you need to know.
 publishedAt: 2025-09-22
 author: LimitBreakIT Tech Analysis Team
-category: Emerging Technology
+category: Innovation & Emerging Tech
 tags: [Meta Smart Glasses, Smart Glasses Review, Smartphone Alternative, New Tech 2025, Wearable Technology]
 image: /images/blog/meta-smart-glasses-revolution.jpg
 featured: true
