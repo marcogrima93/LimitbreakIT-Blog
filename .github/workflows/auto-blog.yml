@@ -1,16 +1,21 @@
-name: Auto Blog Generator
+name: Auto Blog & Social Media Publisher
 
 on:
   schedule:
     # Run daily at 6 AM UTC (8 AM CEST)
-    - cron: '0 6 * * *'  # FIXED: needs 5 fields (min hour day month day-of-week)
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger
+    inputs:
+      skip_social:
+        description: 'Skip social media posting'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
 
 jobs:
-  generate-blog:
+  generate-and-publish:
     runs-on: ubuntu-latest
     
     steps:
@@ -24,32 +29,115 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: npm install axios js-yaml
+        run: |
+          npm install axios js-yaml
+          echo "✓ Dependencies installed"
+      
+      - name: Create required directories
+        run: |
+          mkdir -p Posts
+          mkdir -p instagram-captions
+          echo "✓ Directories created"
       
       - name: Generate blog content
+        id: generate_blog
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/generate-blog.js
+        run: |
+          echo "🚀 Starting blog generation..."
+          node scripts/generate-blog.js
+          
+          # Capture the generated file for social media posting
+          LATEST_POST=$(ls -t Posts/*.md | head -1)
+          echo "latest_post=$LATEST_POST" >> $GITHUB_OUTPUT
+          echo "✓ Blog generated: $LATEST_POST"
       
-      - name: Commit and push changes
+      - name: Post to social media
+        if: success() && github.event.inputs.skip_social != 'true'
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_ORG_ID: ${{ secrets.LINKEDIN_ORG_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+        run: |
+          echo "📱 Posting to social media..."
+          node scripts/post-social.js "${{ steps.generate_blog.outputs.latest_post }}" || echo "⚠️ Social posting failed (non-critical)"
+      
+      - name: Commit blog and social captions
+        id: commit
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "Blog Auto Generator"
+          git config --local user.name "Blog Auto Publisher"
+          
+          # Add both Posts and Instagram captions
           git add Posts/
+          git add instagram-captions/ 2>/dev/null || true
+          
           if git diff --staged --quiet; then
             echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
-            git push
+            COMMIT_MSG="🤖 Auto-published blog post: $(date +'%B %d, %Y at %H:%M UTC')"
+            git commit -m "$COMMIT_MSG"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✓ Changes committed"
           fi
       
-      - name: Trigger website refresh
-        if: success()
+      - name: Push changes
+        if: steps.commit.outputs.has_changes == 'true'
         run: |
-          curl -X POST "${{ secrets.BLOG_REFRESH_URL }}" \
+          git push
+          echo "✓ Changes pushed to repository"
+      
+      - name: Trigger website rebuild
+        if: success() && steps.commit.outputs.has_changes == 'true'
+        continue-on-error: true
+        run: |
+          echo "🔄 Triggering website rebuild..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.BLOG_REFRESH_URL }}" \
             -H "x-api-key: ${{ secrets.BLOG_REFRESH_TOKEN }}" \
-            -H "Content-Type: application/json" || echo "Refresh webhook failed (non-critical)"
+            -H "Content-Type: application/json")
+          
+          if [ "$RESPONSE" = "200" ] || [ "$RESPONSE" = "201" ]; then
+            echo "✓ Website rebuild triggered successfully"
+          else
+            echo "⚠️ Website rebuild returned status: $RESPONSE (non-critical)"
+          fi
+      
+      - name: Upload Instagram captions as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instagram-captions-${{ github.run_number }}
+          path: instagram-captions/
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## 📊 Publishing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Date:** $(date +'%B %d, %Y at %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Blog Generated:** ${{ steps.commit.outputs.has_changes == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Social Media:** ${{ github.event.inputs.skip_social == 'true' && '⏭️ Skipped' || '✅ Attempted' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "Posts/*.md" ]; then
+            LATEST=$(ls -t Posts/*.md | head -1)
+            echo "### 📝 Latest Post" >> $GITHUB_STEP_SUMMARY
+            echo "\`$(basename "$LATEST")\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -d "instagram-captions" ] && [ "$(ls -A instagram-captions)" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📸 Instagram Caption Ready" >> $GITHUB_STEP_SUMMARY
+            echo "Check the artifacts for Instagram caption to post manually with image." >> $GITHUB_STEP_SUMMARY
+          fi
