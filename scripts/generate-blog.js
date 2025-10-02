@@ -433,7 +433,7 @@ Return this EXACT JSON structure with properly escaped content:
     }
 
     // Remove markdown wrappers
-    raw = raw.replace(/^``````\s*/, '').replace(/\s*```
+    raw = raw.replace(/^```json\s*/i, '').replace(/^``````$/g, '').trim();
 
     console.log('✂️  Cleaned response, attempting to parse JSON...');
 
