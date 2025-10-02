@@ -1,102 +1,31 @@
 /* eslint-disable no-console */
-const axios = require('axios');
 const fs = require('fs').promises;
+const axios = require('axios');
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
-
+const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL;
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-
-// Social Media API Keys
-const LINKEDIN_ACCESS_TOKEN = process.env.LINKEDIN_ACCESS_TOKEN;
-const LINKEDIN_ORG_ID = process.env.LINKEDIN_ORG_ID; // Your company page ID
-
-const FACEBOOK_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
-const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID;
-
-const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-
-// ============================================================================
-// SOCIAL CONTENT GENERATION
-// ============================================================================
 
 async function generateSocialContent(blogPost) {
   console.log('\n📱  Generating social media content...');
 
-  const prompt = `You are a social media expert for a tech company. Create engaging social media posts for the following blog article.
+  const prompt = `Create 3 social media posts for this blog article. Return ONLY valid JSON.
 
-BLOG DETAILS:
-Title: ${blogPost.title}
-Excerpt: ${blogPost.excerpt}
-Category: ${blogPost.category}
-URL: ${blogPost.url}
+BLOG:
+- Title: ${blogPost.title}
+- Excerpt: ${blogPost.excerpt}
+- Category: ${blogPost.category}
+- URL: ${blogPost.url}
 
-CRITICAL RULES:
-1. Each platform needs a DIFFERENT post - don't just repeat the same text
-2. Match the platform's style and culture
-3. Include the blog URL at the end of each post (except Instagram - use "Link in bio")
-4. Use platform-appropriate formatting (hashtags, emojis, line breaks)
-5. Create urgency and curiosity - make people WANT to click
+REQUIREMENTS:
+- LinkedIn: Professional, 700-1000 chars, 3-5 hashtags, include URL
+- Facebook: Conversational, 400-600 chars, 2-3 hashtags, include URL
+- Instagram: Visual/casual, 150-300 chars, 5-10 hashtags, say "Link in bio" (NO URL)
 
-PLATFORM REQUIREMENTS:
-
-**LinkedIn** (700-1300 chars recommended):
-- Professional tone but still engaging
-- Lead with the business impact or insight
-- 2-3 short paragraphs with line breaks
-- 3-5 relevant hashtags at the end
-- Ask a thought-provoking question or call-to-action
-- Example format:
-  "The latest [Company] breach affects 2M+ users. But here's what most coverage is missing...
-  
-  [Key insight or business angle - 2-3 sentences]
-  
-  For IT leaders, this means [practical implication].
-  
-  Full technical breakdown + what to do next: [URL]
-  
-  #Cybersecurity #DataBreach #ITLeadership"
-
-**Facebook** (400-600 chars recommended):
-- Conversational and accessible
-- Focus on "why this matters to you"
-- Use line breaks for readability
-- 2-3 hashtags (Facebook uses fewer)
-- Can use 1-2 emojis if natural
-- Example: "Your firewall might be wide open right now. 😬
-  
-  A critical bug in Cisco devices is being actively exploited - and 50,000+ companies are vulnerable.
-  
-  Here's what you need to know (and do) TODAY:
-  [URL]
-  
-  #CyberSecurity #BusinessTech"
-
-**Instagram** (MAX 2200 chars, aim for 150-300):
-- VISUAL and casual language
-- Focus on ONE key insight or shocking fact
-- Use line breaks and emojis strategically
-- 5-10 hashtags (Instagram rewards more hashtags)
-- NO CLICKABLE LINKS - say "Link in bio" instead
-- First line must HOOK (people see this in feed before "more...")
-- Example: "🚨 50,000 firewalls just got exposed
-  
-  Not a drill. Hackers are racing to exploit this flaw right now.
-  
-  Are you patched? Most companies aren't. 😬
-  
-  Full breakdown + what to do 👉 Link in bio
-  
-  #Cybersecurity #InfoSec #TechNews #DataBreach #ITSecurity #CyberAttack #NetworkSecurity #InfoSecCommunity #CyberAware #TechAlert"
-
-Return ONLY valid JSON with NO markdown wrappers:
-
+Return this exact JSON structure:
 {
-  "linkedin": "Your LinkedIn post with professional tone and hashtags",
-  "facebook": "Your Facebook post with conversational tone",
-  "instagram": "Your Instagram post with emojis, line breaks, and 'Link in bio' (NO URL)"
+  "linkedin": "Professional LinkedIn post with hashtags and ${blogPost.url}",
+  "facebook": "Conversational Facebook post with hashtags and ${blogPost.url}",
+  "instagram": "Visual Instagram post with emojis and 'Link in bio' (no URL)"
 }`;
 
   try {
@@ -105,10 +34,7 @@ Return ONLY valid JSON with NO markdown wrappers:
       {
         model: 'sonar-pro',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a social media expert. Return ONLY valid JSON with no markdown wrappers or commentary.' 
-          },
+          { role: 'system', content: 'Return ONLY valid JSON, no markdown.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.8,
@@ -124,210 +50,132 @@ Return ONLY valid JSON with NO markdown wrappers:
     );
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
-
-    // Extract JSON
     const jsonStart = raw.indexOf('{');
     const jsonEnd = raw.lastIndexOf('}');
     if (jsonStart !== -1 && jsonEnd !== -1) {
       raw = raw.substring(jsonStart, jsonEnd + 1);
     }
 
-    const socialContent = JSON.parse(raw);
-
-    // Replace [URL] placeholder with actual URL (except Instagram)
-    if (socialContent.linkedin) {
-      socialContent.linkedin = socialContent.linkedin.replace(/\[URL\]/g, blogPost.url);
-    }
-    if (socialContent.facebook) {
-      socialContent.facebook = socialContent.facebook.replace(/\[URL\]/g, blogPost.url);
-    }
-
-    console.log('✓ Social content generated for all platforms');
-    return socialContent;
-
+    return JSON.parse(raw);
   } catch (error) {
     console.error('❌ Failed to generate social content:', error.message);
     throw error;
   }
 }
 
-// ============================================================================
-// PLATFORM POSTING FUNCTIONS
-// ============================================================================
-
-async function postToLinkedIn(content) {
-  if (!LINKEDIN_ACCESS_TOKEN || !LINKEDIN_ORG_ID) {
-    console.warn('⚠️  LinkedIn credentials not configured - skipping');
-    return { success: false, reason: 'No credentials' };
+async function sendToZapier(blogPost, socialContent) {
+  if (!ZAPIER_WEBHOOK_URL) {
+    console.warn('⚠️  ZAPIER_WEBHOOK_URL not set - skipping social posting');
+    return { success: false, reason: 'No webhook configured' };
   }
 
   try {
-    console.log('💼 Posting to LinkedIn...');
+    console.log('\n📤 Sending to Zapier webhook...');
 
     const payload = {
-      author: `urn:li:organization:${LINKEDIN_ORG_ID}`,
-      lifecycleState: 'PUBLISHED',
-      specificContent: {
-        'com.linkedin.ugc.ShareContent': {
-          shareCommentary: {
-            text: content
-          },
-          shareMediaCategory: 'NONE'
-        }
-      },
-      visibility: {
-        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC'
-      }
+      // Blog metadata
+      blog_title: blogPost.title,
+      blog_url: blogPost.url,
+      blog_excerpt: blogPost.excerpt,
+      blog_category: blogPost.category,
+      
+      // Social content
+      linkedin_post: socialContent.linkedin,
+      facebook_post: socialContent.facebook,
+      instagram_caption: socialContent.instagram,
+      
+      // Timestamp
+      posted_at: new Date().toISOString()
     };
 
-    const { data } = await axios.post(
-      'https://api.linkedin.com/v2/ugcPosts',
-      payload,
-      {
-        headers: {
-          'Authorization': `Bearer ${LINKEDIN_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'X-Restli-Protocol-Version': '2.0.0'
-        }
-      }
-    );
-
-    console.log(`✓ Posted to LinkedIn: ${data.id}`);
-    return { success: true, id: data.id };
-
-  } catch (error) {
-    console.error('❌ LinkedIn posting failed:', error.response?.data || error.message);
-    return { success: false, error: error.message };
-  }
-}
-
-async function postToFacebook(content) {
-  if (!FACEBOOK_ACCESS_TOKEN || !FACEBOOK_PAGE_ID) {
-    console.warn('⚠️  Facebook credentials not configured - skipping');
-    return { success: false, reason: 'No credentials' };
-  }
-
-  try {
-    console.log('📘 Posting to Facebook...');
-
-    const { data } = await axios.post(
-      `https://graph.facebook.com/v18.0/${FACEBOOK_PAGE_ID}/feed`,
-      {
-        message: content,
-        access_token: FACEBOOK_ACCESS_TOKEN
-      }
-    );
-
-    console.log(`✓ Posted to Facebook: ${data.id}`);
-    return { 
-      success: true, 
-      id: data.id,
-      url: `https://www.facebook.com/${FACEBOOK_PAGE_ID}/posts/${data.id.split('_')[1]}`
-    };
-
-  } catch (error) {
-    console.error('❌ Facebook posting failed:', error.response?.data || error.message);
-    return { success: false, error: error.message };
-  }
-}
-
-async function postToInstagram(content) {
-  if (!INSTAGRAM_ACCESS_TOKEN || !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
-    console.warn('⚠️  Instagram credentials not configured - skipping');
-    return { success: false, reason: 'No credentials' };
-  }
-
-  try {
-    console.log('📸 Creating Instagram post...');
-    console.log('⚠️  NOTE: Instagram requires an image. Saving caption to file for manual posting.');
-
-    // Instagram Graph API requires media (image/video)
-    // Since we're auto-generating text, save caption for manual posting with image
-    const captionFile = `instagram-captions/caption-${Date.now()}.txt`;
-    await fs.mkdir('instagram-captions', { recursive: true });
-    await fs.writeFile(captionFile, content, 'utf8');
-
-    console.log(`✓ Instagram caption saved to: ${captionFile}`);
-    console.log('   → Manually post this with your blog featured image');
-
-    return { 
-      success: true, 
-      manual: true,
-      captionFile,
-      note: 'Instagram requires manual posting with image'
-    };
-
-  } catch (error) {
-    console.error('❌ Instagram caption save failed:', error.message);
-    return { success: false, error: error.message };
-  }
-}
-
-// ============================================================================
-// MAIN POSTING ORCHESTRATOR
-// ============================================================================
-
-async function postToSocialMedia(blogPost) {
-  console.log('\n' + '='.repeat(80));
-  console.log('📱  SOCIAL MEDIA POSTING');
-  console.log('='.repeat(80));
-
-  try {
-    const socialContent = await generateSocialContent(blogPost);
-
-    console.log('\n📝 Generated Content Preview:');
-    console.log('\n💼 LinkedIn:');
-    console.log(socialContent.linkedin);
-    console.log('\n📘 Facebook:');
-    console.log(socialContent.facebook);
-    console.log('\n📸 Instagram:');
-    console.log(socialContent.instagram);
-    console.log('\n' + '-'.repeat(80));
-
-    // Post to all platforms concurrently
-    const results = await Promise.allSettled([
-      postToLinkedIn(socialContent.linkedin),
-      postToFacebook(socialContent.facebook),
-      postToInstagram(socialContent.instagram)
-    ]);
-
-    // Summary
-    console.log('\n' + '='.repeat(80));
-    console.log('📊 POSTING SUMMARY');
-    console.log('='.repeat(80));
-
-    const summary = {
-      linkedin: results[0].status === 'fulfilled' ? results[0].value : { success: false },
-      facebook: results[1].status === 'fulfilled' ? results[1].value : { success: false },
-      instagram: results[2].status === 'fulfilled' ? results[2].value : { success: false }
-    };
-
-    Object.entries(summary).forEach(([platform, result]) => {
-      const icon = result.success ? '✓' : '✗';
-      const status = result.success ? 'SUCCESS' : 'FAILED';
-      console.log(`${icon} ${platform.toUpperCase()}: ${status}`);
-      if (result.url) console.log(`   → ${result.url}`);
-      if (result.captionFile) console.log(`   → Caption saved: ${result.captionFile}`);
+    const { data } = await axios.post(ZAPIER_WEBHOOK_URL, payload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000
     });
 
-    console.log('='.repeat(80) + '\n');
-
-    return summary;
-
+    console.log('✅ Successfully sent to Zapier');
+    console.log('   → LinkedIn, Facebook, Instagram posts queued');
+    
+    return { success: true, data };
   } catch (error) {
-    console.error('\n❌ Social media posting failed:', error.message);
-    throw error;
+    console.error('❌ Zapier webhook failed:', error.message);
+    return { success: false, error: error.message };
   }
 }
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+async function saveInstagramCaption(socialContent) {
+  try {
+    const captionFile = `instagram-captions/caption-${Date.now()}.txt`;
+    await fs.mkdir('instagram-captions', { recursive: true });
+    await fs.writeFile(captionFile, socialContent.instagram, 'utf8');
+    console.log(`✓ Instagram caption saved: ${captionFile}`);
+    return captionFile;
+  } catch (error) {
+    console.warn('⚠️  Failed to save Instagram caption:', error.message);
+    return null;
+  }
+}
 
-module.exports = {
-  postToSocialMedia,
-  generateSocialContent,
-  postToLinkedIn,
-  postToFacebook,
-  postToInstagram
-};
+async function main() {
+  try {
+    const blogFile = process.argv[2];
+    
+    if (!blogFile) {
+      throw new Error('Blog post file path required as argument');
+    }
+
+    console.log(`\n📖 Reading blog post: ${blogFile}`);
+    const content = await fs.readFile(blogFile, 'utf8');
+
+    // Extract frontmatter
+    const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
+    if (!frontmatterMatch) {
+      throw new Error('No frontmatter found in blog post');
+    }
+
+    const yaml = require('js-yaml');
+    const metadata = yaml.load(frontmatterMatch[1]);
+
+    const blogPost = {
+      title: metadata.title,
+      excerpt: metadata.excerpt,
+      category: metadata.category,
+      url: `https://www.limitbreakit.com/insights-news/${metadata.slug}`,
+      slug: metadata.slug
+    };
+
+    console.log('✓ Blog metadata extracted');
+    console.log(`  Title: ${blogPost.title}`);
+    console.log(`  URL: ${blogPost.url}`);
+
+    // Generate social content
+    const socialContent = await generateSocialContent(blogPost);
+    
+    console.log('\n📝 Generated Content Preview:');
+    console.log('\n💼 LinkedIn:');
+    console.log(socialContent.linkedin.substring(0, 150) + '...');
+    console.log('\n📘 Facebook:');
+    console.log(socialContent.facebook.substring(0, 150) + '...');
+    console.log('\n📸 Instagram:');
+    console.log(socialContent.instagram.substring(0, 150) + '...');
+
+    // Send to Zapier (posts to all platforms)
+    const result = await sendToZapier(blogPost, socialContent);
+
+    // Also save Instagram caption locally as backup
+    await saveInstagramCaption(socialContent);
+
+    if (!result.success) {
+      console.error('\n❌ Social posting failed');
+      process.exit(1);
+    }
+
+    console.log('\n✅ Social media posting complete!');
+
+  } catch (error) {
+    console.error('\n❌ Error:', error.message);
+    process.exit(1);
+  }
+}
+
+main();
