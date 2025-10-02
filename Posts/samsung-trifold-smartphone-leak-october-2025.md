@@ -4,7 +4,7 @@ title: Samsung Trifold Smartphone Leak Sends Shockwaves Before Launch
 excerpt: Samsung's first trifold smartphone leaked ahead of its October launch, revealing radical design and XR features to rival Apple Vision Pro. Here’s why tech fans are freaking out.
 publishedAt: "2025-10-01"
 author: LimitBreakIT Innovation Team
-category: Innovation
+category: Innovation & Emerging Tech
 tags:
   - Samsung Trifold
   - XR Smartphone
