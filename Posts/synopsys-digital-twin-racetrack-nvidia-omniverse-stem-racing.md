@@ -4,7 +4,7 @@ title: Synopsys Launches Digital Twin Racetrack for STEM Racing with NVIDIA Omni
 excerpt: Synopsys just unveiled a digital twin racetrack for STEM Racing, powered by NVIDIA Omniverse. Over 400,000 students can now run virtual F1 car simulations and test designs.
 publishedAt: "2025-10-01"
 author: LimitBreakIT Innovation Team
-category: Innovation
+category: Innovation & Emerging Tech
 tags:
   - Digital Twin Racetrack
   - STEM Racing
