@@ -9,7 +9,7 @@ const yaml = require('js-yaml');
 // ============================================================================
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // Get free at unsplash.com/developers
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
@@ -37,11 +37,6 @@ function stripColons(str = '') {
 
 function stripFootnotes(markdown) {
   return markdown.replace(/\[\d{1,4}\]/g, '');
-}
-
-function stripAIImages(markdown) {
-  // Remove any {{image:...}} tags that the AI might have added
-  return markdown.replace(/\{\{image:[^}]+\}\}/g, '');
 }
 
 function countWords(text) {
@@ -87,7 +82,6 @@ async function fetchExistingSlugs() {
   const slugs = new Set();
   const posts = [];
 
-  // Method 1: Read local Posts directory
   try {
     const files = await fs.readdir(POSTS_DIR);
     for (const file of files.filter(f => f.endsWith('.md'))) {
@@ -96,14 +90,10 @@ async function fetchExistingSlugs() {
 
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
-
-        // Extract title from frontmatter
         const titleMatch = content.match(/^title:\s*(.+)$/m);
         if (titleMatch) {
           posts.push(titleMatch[1].trim());
         }
-
-        // Also extract keywords and tags to get better topic coverage
         const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
         if (excerptMatch) {
           posts.push(excerptMatch[1].trim());
@@ -117,19 +107,15 @@ async function fetchExistingSlugs() {
     console.log('⚠️  Posts directory not found - checking website only');
   }
 
-  // Method 2: Scrape website blog list
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
 
-    // Extract slugs from links
     const slugMatches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
     slugMatches.forEach(match => {
       const slug = match.split('/').pop();
       if (slug && slug.length > 5) slugs.add(slug);
     });
 
-    // Try multiple methods to extract titles
-    // Method A: Look for article titles in various HTML structures
     const titlePatterns = [
       /<h[1-4][^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/h[1-4]>/gi,
       /<h[1-4][^>]*>([^<]{20,120})<\/h[1-4]>/g,
@@ -148,7 +134,6 @@ async function fetchExistingSlugs() {
       }
     });
 
-    // Method B: Extract from JSON-LD if present
     const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/s);
     if (jsonLdMatch) {
       try {
@@ -169,7 +154,6 @@ async function fetchExistingSlugs() {
     console.warn(`⚠️  Could not fetch website: ${err.message}`);
   }
 
-  // Deduplicate and clean posts
   const uniquePosts = [...new Set(posts)]
     .filter(p => p.length > 15 && p.length < 150)
     .map(p => p.replace(/\s+/g, ' ').trim());
@@ -179,26 +163,6 @@ async function fetchExistingSlugs() {
   console.log(`✓ Extracted ${uniquePosts.length} unique post topics for duplicate detection`);
 
   return slugs;
-}
-
-function injectMidImage(md, imageUrl) {
-  const words = md.split(/\s+/);
-  if (words.length < 800) return md;
-
-  const idx = md.indexOf('##');
-  if (idx === -1) return md;
-  const firstH2 = md.indexOf('\n', idx);
-  if (firstH2 === -1) return md;
-
-  // Use the provided Unsplash image URL - no fallback to local files
-  if (!imageUrl) {
-    console.warn('⚠️  No inline image URL provided, skipping inline image');
-    return md;
-  }
-
-  const imgTag = `\n\n{{image: ${imageUrl}, width: 800, height: 450, alt: "Article illustration"}}\n`;
-
-  return md.slice(0, firstH2 + 1) + imgTag + md.slice(firstH2 + 1);
 }
 
 // ============================================================================
@@ -212,7 +176,6 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
   }
 
   try {
-    // Build smart search query from keywords and category
     const searchTerms = [
       category.toLowerCase(),
       ...keywords.slice(0, 2)
@@ -236,17 +199,15 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
     if (data.results && data.results.length > 0) {
       const photo = data.results[0];
 
-      // Use different sizes based on usage
       let width, height;
       if (size === 'header') {
         width = 1200;
         height = 600;
-      } else { // adhoc/inline images
+      } else {
         width = 800;
         height = 450;
       }
 
-      // Use Unsplash's built-in image optimization
       const optimizedUrl = `${photo.urls.raw}&w=${width}&h=${height}&fit=crop&q=80`;
 
       console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height})`);
@@ -270,16 +231,57 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
 }
 
 async function triggerUnsplashDownload(downloadLocation) {
-  // Required by Unsplash API terms - triggers download tracking
   if (!downloadLocation || !UNSPLASH_ACCESS_KEY) return;
 
   try {
     await axios.get(downloadLocation, {
       headers: { 'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}` }
     });
-  } catch (_) {
-    // Silent fail - not critical
+  } catch (_) {}
+}
+
+async function processInlineImages(content, keywords, category, title) {
+  // Find all {{image:...}} tags
+  const imageTagRegex = /\{\{image:\s*([^,]+),\s*width:\s*(\d+),\s*height:\s*(\d+),\s*alt:\s*"([^"]+)"\}\}/g;
+  const matches = [...content.matchAll(imageTagRegex)];
+
+  if (matches.length === 0) {
+    console.log('ℹ️  No inline image tags found in AI content');
+    return content;
   }
+
+  console.log(`🖼️  Found ${matches.length} inline image tag(s) to process`);
+
+  let updatedContent = content;
+
+  for (const match of matches) {
+    const [fullMatch, searchQuery, width, height, alt] = match;
+    
+    console.log(`🖼️  Processing inline image: "${searchQuery}" (${width}x${height})`);
+
+    // Fetch image from Unsplash using the AI's search query
+    const imageData = await fetchUnsplashImage(
+      [searchQuery, ...keywords.slice(0, 1)], 
+      category,
+      title,
+      'inline'
+    );
+
+    if (imageData) {
+      await triggerUnsplashDownload(imageData.downloadLocation);
+      
+      // Replace the {{image:...}} tag with the actual Unsplash URL
+      const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
+      updatedContent = updatedContent.replace(fullMatch, replacement);
+      
+      console.log(`✓ Replaced inline image with Unsplash URL`);
+    } else {
+      console.warn(`⚠️  Could not fetch inline image, removing tag`);
+      updatedContent = updatedContent.replace(fullMatch, '');
+    }
+  }
+
+  return updatedContent;
 }
 
 // ============================================================================
@@ -301,7 +303,12 @@ CRITICAL FORMATTING RULES:
 - ### **Subheader** = subsections within main sections
 - Tables for comparisons using | markdown syntax
 - Bullet points with - for lists
-- DO NOT add any {{image:...}} tags - images will be handled automatically
+
+INLINE IMAGE TAGS:
+- You CAN add inline images using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
+- Place ONE inline image tag after the first ## section if the article is 800+ words
+- The search-query should be 2-4 descriptive keywords (e.g., "cybersecurity breach data", "smartphone folding screen")
+- These tags will be replaced with actual Unsplash images automatically
 
 FORMATTING REQUIREMENTS:
 ✓ SHORT paragraphs (2-4 sentences max)
@@ -328,7 +335,7 @@ YAML HEADER RULES:
 - Keep titles under 65 characters
 - Excerpts must be 140-160 characters
 
-Return ONLY valid JSON (no markdown wrappers).`;
+Return ONLY valid JSON (no markdown code blocks, no backticks, just pure JSON starting with { and ending with }).`;
 
   const existingTopicsList = existingTopics.length > 0 
     ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL DUPLICATE DETECTION:\n- Use fuzzy matching to detect duplicates even if titles differ slightly\n- Example: "Meta Glasses" vs "Meta's $799 Smart Glasses" = DUPLICATE\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE\n- Check for overlap in: companies mentioned, technology type, or incident type`
@@ -358,7 +365,7 @@ AVOID BORING STUFF:
 ❌ Minor feature updates or version bumps
 ❌ Routine earnings (unless there's drama)
 ❌ Generic trend pieces without specific news
-❌ Press releases without substance${existingTopicsList}
+❌ Press releases without substance
 
 AI REASONING FOR METADATA:
 
@@ -396,27 +403,12 @@ BAD: "A significant security incident affected major airports..."
 
 Create 4-5 sections with ## headers. Choose headers that fit YOUR specific story - don't use generic templates. Make headers compelling and specific to the news.
 
-For a cyberattack story, headers might be:
-- ## The Attack That Shut Down Europe's Busiest Airport
-- ## Why Airport Security Just Got a Wake-Up Call
-- ## How Hackers Exploited a Single Weakness
-- ## What Every Business Should Do Today
+INLINE IMAGE PLACEMENT:
+If your article is 800+ words, add ONE inline image tag after the first ## section:
+{{image: relevant-keywords, width: 800, height: 450, alt: "Descriptive alt text"}}
 
-For a product launch, headers might be:
-- ## Apple's Biggest Bet Since the iPhone
-- ## The Technology That Changes Everything
-- ## Why Competitors Are Scrambling
-- ## What This Means for Your Business
-
-STRUCTURE EACH SECTION:
-
-IMPORTANT: Do NOT follow a rigid template. Adapt your structure to fit the story. Not every article needs a table in the same place. Be flexible and natural.
-
-**Opening paragraph** (2-4 sentences, no heading)
-Lead with the most shocking fact. Make it punchy and specific to this story.
-
-**Create 4-5 sections with compelling ## headers**
-Headers should be specific to YOUR story, not generic. Make readers curious.
+For example, for a cyberattack story:
+{{image: cybersecurity breach server, width: 800, height: 450, alt: "Cybersecurity infrastructure"}}
 
 STRUCTURE GUIDELINES (adapt to your story):
 
@@ -441,21 +433,9 @@ For BUSINESS/FUNDING stories:
 - Section 4: Winners and losers / competitive landscape
 - Final: What to watch
 
-FORMATTING FLEXIBILITY:
-
-**Tables**: Only use if you're comparing data, systems, or options. Many stories don't need tables - don't force it.
-
-**Bullet points**: Use when listing multiple impacts, features, or concerns. But also use regular paragraphs when appropriate.
-
-**Subsections (###)**: Rarely needed. Only use if a section is genuinely complex and needs breaking down.
-
-**Length per section**: 200-300 words is a guideline, not a rule. Some sections might be 150 words, others 350. Let the content dictate length.
-
 **Final section** (100-150 words)
 Start with "Bottom line:" or "Here's what matters:"
 *Put your key takeaway in italics as a full sentence.*
-
-BE NATURAL. Don't robotically follow templates. Every story is different - write accordingly.
 
 COMPLETE JSON RESPONSE:
 
@@ -463,33 +443,24 @@ COMPLETE JSON RESPONSE:
   "title": "Keyword-rich title (50-65 chars, NO COLONS, include primary keyword)",
   "slug": "url-friendly-slug-with-primary-keyword",
   "excerpt": "Compelling hook with primary keyword (140-160 chars, NO COLONS)",
-  "content": "Full markdown article following structure above - DO NOT include {{image:...}} tags",
+  "content": "Full markdown article - can include ONE {{image:...}} tag if 800+ words",
   "category": "Your chosen category",
   "categoryReasoning": "Brief explanation of why this category fits best",
   "tags": ["Specific", "Searchable", "Tags", "Like iPhone17", "Not Generic"],
   "featured": true or false,
-  "featuredReasoning": "Why this deserves featured status or not based on trend score, reach, breaking news value, significance",
+  "featuredReasoning": "Why this deserves featured status or not",
   "metaTitle": "SEO title with primary keyword (50-60 chars, NO COLONS)",
   "metaDescription": "Benefit/hook with primary keyword (150-160 chars, NO COLONS)",
   "keywords": ["primary-keyword-phrase", "secondary-keyword", "long-tail-search-phrase"],
   "image": "/images/blog/descriptive-file-name.jpg",
-  "author": "LimitBreakIT Security Insights Team" OR "LimitBreakIT Innovation Team" OR "LimitBreakIT Tech Insights Team" (choose based on topic),
+  "author": "LimitBreakIT Security Insights Team" OR "LimitBreakIT Innovation Team" OR "LimitBreakIT Tech Insights Team",
   "trendScore": 75,
-  "sources": "Mention 1-2 credible sources you referenced (e.g., 'The Verge, Bloomberg')"
+  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')"
 }
 
-🚨 FINAL REMINDERS:
-- Return ONLY the JSON object - no commentary before or after
-- Enforce character limits strictly (truncate at word boundaries if needed)
-- Primary keyword must appear in title, excerpt, metaTitle, and opening paragraph
-- NEVER fabricate numbers, CVE IDs, or user counts - write "Data not yet available" if unconfirmed
-- Excerpt and metaDescription must read like natural hooks, NOT keyword spam
-- Cite at least 2 sources: one technical (BleepingComputer, SecurityWeek) AND one mainstream (Bloomberg, Wired, The Verge)
-- If uncertain about any technical detail, explicitly state uncertainty rather than inventing facts
-- DO NOT include any {{image:...}} tags in the content - they will be added automatically`;
+🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. No commentary. Just pure JSON starting with { and ending with }.`;
 
   try {
-    // Log the prompts before sending
     console.log('\n' + '='.repeat(80));
     console.log('📤  SYSTEM PROMPT BEING SENT TO PERPLEXITY:');
     console.log('='.repeat(80));
@@ -522,8 +493,8 @@ COMPLETE JSON RESPONSE:
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
-    // Strip any markdown wrappers
-    raw = raw.replace(/``````/g, '').trim();
+    // More aggressive markdown wrapper removal
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
 
     const result = JSON.parse(raw);
 
@@ -532,7 +503,7 @@ COMPLETE JSON RESPONSE:
 
     if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
       if (retryCount < 3) {
-        const waitTime = 2000 * Math.pow(2, retryCount); // Exponential backoff: 2s, 4s, 8s
+        const waitTime = 2000 * Math.pow(2, retryCount);
         console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying in ${waitTime/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return callPerplexity(retryCount + 1, existingTopics);
@@ -561,7 +532,6 @@ COMPLETE JSON RESPONSE:
 async function generateBlog() {
   console.log('🚀  Starting blog generation...\n');
 
-  // Fetch existing posts first
   console.log('📚  Checking existing blog posts...');
   const existing = await fetchExistingSlugs();
   console.log(`✓ Found ${EXISTING_POSTS_CACHE.length} existing posts to avoid duplicating\n`);
@@ -584,7 +554,6 @@ async function generateBlog() {
 
   console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
 
-  // Use AI's featured decision
   const featured = trend.featured === true || Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
   console.log(`✓ Trend score: ${trend.trendScore}/100`);
   console.log(`✓ Featured: ${featured ? 'YES' : 'NO'}`);
@@ -608,9 +577,8 @@ async function generateBlog() {
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
-  // Fetch optimized header image from Unsplash (1200x600)
+  // Fetch header image
   let imageUrl = null;
-  let inlineImageUrl = null;
   let imageCredit = null;
 
   console.log('\n🖼️  Fetching blog header image (1200x600)...');
@@ -628,38 +596,13 @@ async function generateBlog() {
     console.log(`✓ Header image: ${imageUrl.substring(0, 80)}...`);
   } else {
     console.warn('⚠️  Could not fetch header image from Unsplash');
-    imageUrl = `/images/blog/${slug}.jpg`; // Fallback
+    imageUrl = `/images/blog/${slug}.jpg`;
   }
 
   let content = stripFootnotes(trend.content || '');
 
-  // Strip any AI-generated image tags so we can inject Unsplash images
-  content = stripAIImages(content);
-  console.log('✓ Stripped AI-generated image tags from content');
-
-  // Fetch inline/adhoc image if content is long enough (800x450)
-  const wordCount = countWords(content);
-  if (wordCount >= 800) {
-    console.log('🖼️  Fetching inline image (800x450)...');
-    const inlineImageData = await fetchUnsplashImage(
-      trend.keywords || [],
-      trend.category,
-      trend.title,
-      'inline'
-    );
-
-    if (inlineImageData) {
-      inlineImageUrl = inlineImageData.url;
-      await triggerUnsplashDownload(inlineImageData.downloadLocation);
-      console.log(`✓ Inline image: ${inlineImageUrl.substring(0, 80)}...`);
-      
-      // Now inject the Unsplash image
-      content = injectMidImage(content, inlineImageUrl);
-      console.log('✓ Injected inline Unsplash image into content');
-    } else {
-      console.warn('⚠️  Could not fetch inline image from Unsplash - skipping');
-    }
-  }
+  // Process inline images from AI-generated {{image:...}} tags
+  content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title);
 
   // Add image credit at the end if using Unsplash
   if (imageCredit) {
@@ -674,7 +617,7 @@ async function generateBlog() {
     author: trend.author || 'LimitBreakIT Team',
     category: trend.category || 'Innovation',
     tags: trend.tags || [],
-    image: imageUrl, // Uses Unsplash URL or fallback
+    image: imageUrl,
     featured,
     metaTitle: trend.metaTitle || trend.title,
     metaDescription: trend.metaDescription || trend.excerpt,
@@ -698,9 +641,6 @@ async function generateBlog() {
   console.log(`🏷️   Category: ${frontmatter.category}`);
   console.log(`🔖  Tags: ${frontmatter.tags.join(', ')}`);
   console.log(`🖼️  Header image: ${imageUrl.substring(0, 80)}...`);
-  if (inlineImageUrl) {
-    console.log(`🖼️  Inline image: ${inlineImageUrl.substring(0, 80)}...`);
-  }
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
 }
 
