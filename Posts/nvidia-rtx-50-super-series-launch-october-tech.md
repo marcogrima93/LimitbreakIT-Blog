@@ -4,7 +4,7 @@ title: Nvidia RTX 50 Super Series Launch Ignites October Tech Frenzy
 excerpt: Nvidia just dropped its RTX 50 Super GPUs, unleashing a new graphics arms race. Here's what you need to know about the powerful new cards and how they shake up the PC world.
 publishedAt: "2025-10-01"
 author: LimitBreakIT Innovation Team
-category: Innovation
+category: Innovation & Emerging Tech
 tags:
   - Nvidia RTX 50 Super
   - GPU launch
