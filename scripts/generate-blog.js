@@ -253,7 +253,7 @@ async function triggerUnsplashDownload(downloadLocation) {
   } catch (_) {}
 }
 
-async function processInlineImages(content, keywords, category, title) {
+async function processInlineImages(content, keywords, category, title, creditsArray = []) {
   // Find all {{image:...}} tags
   const imageTagRegex = /\{\{image:\s*([^,]+),\s*width:\s*(\d+),\s*height:\s*(\d+),\s*alt:\s*"([^"]+)"\}\}/g;
   const matches = [...content.matchAll(imageTagRegex)];
@@ -283,6 +283,11 @@ async function processInlineImages(content, keywords, category, title) {
 
     if (imageData) {
       await triggerUnsplashDownload(imageData.downloadLocation);
+      
+      // Store credit for later
+      if (imageData.credit) {
+        creditsArray.push(imageData.credit);
+      }
       
       // Replace the {{image:...}} tag with the actual Unsplash URL
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
@@ -318,6 +323,16 @@ CRITICAL FORMATTING RULES:
 - Tables for comparisons using | markdown syntax
 - Bullet points with - for lists
 
+LINKS AND REFERENCES (CRITICAL):
+- You MUST include 3-5 inline links throughout the article using [text](url) format
+- Link to your actual sources when you mention them (e.g., [according to The Verge](https://theverge.com/article-url))
+- Link to official product pages when mentioning products (e.g., [iPhone 17](https://apple.com/iphone))
+- Link to company websites when first mentioning companies
+- Link to security advisories when mentioning CVEs or vulnerabilities
+- NEVER use placeholder URLs like "example.com" - use real, relevant URLs from your research
+- Example: "**Apple** announced the [iPhone 17 Pro](https://www.apple.com/iphone-17-pro/) yesterday..."
+- Example: "According to [BleepingComputer](https://www.bleepingcomputer.com/news/security/article/), the vulnerability affects..."
+
 INLINE IMAGE TAGS:
 - You CAN and SHOULD add ONE inline image using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
 - Place it after the first ## section if the article is 800+ words
@@ -333,6 +348,7 @@ FORMATTING REQUIREMENTS:
 ✓ Blank lines between paragraphs
 ✓ Use **bold** liberally (8-12 times per article)
 ✓ Use *italics* for quotes or subtle emphasis (3-5 times)
+✓ Include 3-5 inline hyperlinks to sources, products, or companies [text](url)
 ✓ Include 1-2 tables if comparing data/systems/options
 ✓ Use bullet points for lists of impacts/features/concerns
 ✓ Include specific numbers with **bold** emphasis
@@ -648,11 +664,16 @@ async function generateBlog() {
 
   // Process inline images from AI-generated {{image:...}} tags
   console.log('\n🖼️  Processing inline images...');
-  content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title);
+  const inlineImageCredits = [];
+  content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title, inlineImageCredits);
 
-  // Add image credit at the end if using Unsplash
-  if (imageCredit) {
-    content += `\n\n---\n\n*${imageCredit}*`;
+  // Add image credits at the end if using Unsplash
+  const allCredits = [];
+  if (imageCredit) allCredits.push(imageCredit);
+  if (inlineImageCredits.length > 0) allCredits.push(...inlineImageCredits);
+  
+  if (allCredits.length > 0) {
+    content += `\n\n---\n\n*${allCredits.join(' | ')}*`;
   }
 
   const frontmatter = {
