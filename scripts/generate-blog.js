@@ -169,24 +169,35 @@ async function fetchExistingSlugs() {
 // IMAGE FETCHING
 // ============================================================================
 
-async function fetchUnsplashImage(keywords, category, title, size = 'header') {
+async function fetchUnsplashImage(keywords, category, title, size = 'header', customQuery = null) {
   if (!UNSPLASH_ACCESS_KEY) {
     console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - cannot fetch images');
     return null;
   }
 
   try {
-    const searchTerms = [
-      category.toLowerCase(),
-      ...keywords.slice(0, 2)
-    ].join(' ');
-
-    console.log(`🖼️  Searching Unsplash for: "${searchTerms}" (${size})`);
+    let searchTerms;
+    let resultIndex = 0; // Which result to pick from the array
+    
+    if (customQuery) {
+      // Use AI-provided search query directly for inline images
+      searchTerms = customQuery;
+      console.log(`🖼️  Using AI search query: "${searchTerms}" (${size})`);
+    } else if (size === 'inline') {
+      // Fallback: use different keywords to avoid header duplicate
+      searchTerms = keywords.slice(1, 4).join(' ') || `${category} technology`;
+      resultIndex = 1; // Use second result if available
+      console.log(`🖼️  Searching Unsplash (fallback): "${searchTerms}" (${size})`);
+    } else {
+      // Header image
+      searchTerms = [category.toLowerCase(), ...keywords.slice(0, 2)].join(' ');
+      console.log(`🖼️  Searching Unsplash: "${searchTerms}" (${size})`);
+    }
 
     const { data } = await axios.get('https://api.unsplash.com/search/photos', {
       params: {
         query: searchTerms,
-        per_page: 1,
+        per_page: 5, // Get multiple results to avoid duplicates
         orientation: 'landscape',
         content_filter: 'high'
       },
@@ -197,7 +208,9 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
     });
 
     if (data.results && data.results.length > 0) {
-      const photo = data.results[0];
+      // Pick the appropriate result (avoid duplicates for inline images)
+      const photoIndex = Math.min(resultIndex, data.results.length - 1);
+      const photo = data.results[photoIndex];
 
       let width, height;
       if (size === 'header') {
@@ -210,7 +223,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header') {
 
       const optimizedUrl = `${photo.urls.raw}&w=${width}&h=${height}&fit=crop&q=80`;
 
-      console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height})`);
+      console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height}) [result #${photoIndex + 1}]`);
 
       return {
         url: optimizedUrl,
@@ -255,16 +268,17 @@ async function processInlineImages(content, keywords, category, title) {
   let updatedContent = content;
 
   for (const match of matches) {
-    const [fullMatch, searchQuery, width, height, alt] = match;
+    const [fullMatch, aiSearchQuery, width, height, alt] = match;
     
-    console.log(`🖼️  Processing inline image: "${searchQuery}" (${width}x${height})`);
+    console.log(`🖼️  AI requested image for: "${aiSearchQuery.trim()}"`);
 
-    // Fetch image from Unsplash using the AI's search query
+    // Use the AI's descriptive search query directly
     const imageData = await fetchUnsplashImage(
-      [searchQuery, ...keywords.slice(0, 1)], 
+      keywords,
       category,
       title,
-      'inline'
+      'inline',
+      aiSearchQuery.trim() // Pass AI's specific query
     );
 
     if (imageData) {
@@ -274,9 +288,9 @@ async function processInlineImages(content, keywords, category, title) {
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
       updatedContent = updatedContent.replace(fullMatch, replacement);
       
-      console.log(`✓ Replaced inline image with Unsplash URL`);
+      console.log(`✓ Replaced with: ${imageData.url.substring(0, 70)}...`);
     } else {
-      console.warn(`⚠️  Could not fetch inline image, removing tag`);
+      console.warn(`⚠️  Could not fetch inline image for "${aiSearchQuery.trim()}", removing tag`);
       updatedContent = updatedContent.replace(fullMatch, '');
     }
   }
@@ -305,10 +319,14 @@ CRITICAL FORMATTING RULES:
 - Bullet points with - for lists
 
 INLINE IMAGE TAGS:
-- You CAN add inline images using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
-- Place ONE inline image tag after the first ## section if the article is 800+ words
-- The search-query should be 2-4 descriptive keywords (e.g., "cybersecurity breach data", "smartphone folding screen")
-- These tags will be replaced with actual Unsplash images automatically
+- You CAN and SHOULD add ONE inline image using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
+- Place it after the first ## section if the article is 800+ words
+- The search-query should be 3-6 DESCRIPTIVE keywords that accurately describe what the image should show
+- Be SPECIFIC with your search query - don't use generic terms
+- Examples:
+  * GOOD: "server room cyberattack red alert" or "folding smartphone curved display"
+  * BAD: "technology" or "security" or "innovation"
+- Think about what visual would best illustrate your article's main point
 
 FORMATTING REQUIREMENTS:
 ✓ SHORT paragraphs (2-4 sentences max)
@@ -403,12 +421,20 @@ BAD: "A significant security incident affected major airports..."
 
 Create 4-5 sections with ## headers. Choose headers that fit YOUR specific story - don't use generic templates. Make headers compelling and specific to the news.
 
-INLINE IMAGE PLACEMENT:
-If your article is 800+ words, add ONE inline image tag after the first ## section:
-{{image: relevant-keywords, width: 800, height: 450, alt: "Descriptive alt text"}}
+INLINE IMAGE PLACEMENT (IMPORTANT):
+If your article is 800+ words, add ONE inline image tag after the first ## section.
+Think carefully about what visual would best illustrate the story:
 
-For example, for a cyberattack story:
-{{image: cybersecurity breach server, width: 800, height: 450, alt: "Cybersecurity infrastructure"}}
+For a cyberattack story:
+{{image: ransomware attack command center screen, width: 800, height: 450, alt: "Cybersecurity operations center"}}
+
+For a product launch:
+{{image: foldable smartphone unfolding display, width: 800, height: 450, alt: "Advanced smartphone technology"}}
+
+For a data breach:
+{{image: hacked database server warning lights, width: 800, height: 450, alt: "Data breach security alert"}}
+
+BE SPECIFIC with your search query - generic terms like "technology" or "security" won't work well.
 
 STRUCTURE GUIDELINES (adapt to your story):
 
@@ -443,7 +469,7 @@ COMPLETE JSON RESPONSE:
   "title": "Keyword-rich title (50-65 chars, NO COLONS, include primary keyword)",
   "slug": "url-friendly-slug-with-primary-keyword",
   "excerpt": "Compelling hook with primary keyword (140-160 chars, NO COLONS)",
-  "content": "Full markdown article - can include ONE {{image:...}} tag if 800+ words",
+  "content": "Full markdown article - MUST include ONE {{image:...}} tag if 800+ words",
   "category": "Your chosen category",
   "categoryReasoning": "Brief explanation of why this category fits best",
   "tags": ["Specific", "Searchable", "Tags", "Like iPhone17", "Not Generic"],
@@ -494,7 +520,7 @@ COMPLETE JSON RESPONSE:
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
     // More aggressive markdown wrapper removal
-    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '').trim();
 
     const result = JSON.parse(raw);
 
@@ -602,6 +628,7 @@ async function generateBlog() {
   let content = stripFootnotes(trend.content || '');
 
   // Process inline images from AI-generated {{image:...}} tags
+  console.log('\n🖼️  Processing inline images...');
   content = await processInlineImages(content, trend.keywords || [], trend.category, trend.title);
 
   // Add image credit at the end if using Unsplash
