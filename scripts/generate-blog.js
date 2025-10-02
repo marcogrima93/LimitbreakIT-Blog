@@ -510,7 +510,7 @@ COMPLETE JSON RESPONSE:
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: 'sonar-reasoning-pro',
+        model: 'sonar-pro',
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user }
@@ -529,7 +529,16 @@ COMPLETE JSON RESPONSE:
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
-    // More aggressive markdown wrapper removal
+    // CRITICAL: sonar-reasoning-pro returns <think>...</think> tags before JSON
+    // Strip everything before the first { and after the last }
+    const jsonStart = raw.indexOf('{');
+    const jsonEnd = raw.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      raw = raw.substring(jsonStart, jsonEnd + 1);
+    }
+
+    // Also remove any markdown wrappers
     raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '').trim();
 
     const result = JSON.parse(raw);
