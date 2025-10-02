@@ -1,21 +1,9 @@
-name: Auto Blog & Social Media Publisher
-
-on:
-  schedule:
-    - cron: '0 6 * * *'  # Daily at 6 AM UTC
-  workflow_dispatch:
-    inputs:
-      skip_social:
-        description: 'Skip social media posting'
-        required: false
-        default: 'false'
-
-permissions:
-  contents: write
-
 jobs:
   generate-and-publish:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts  # Set default for all 'run' commands
     
     steps:
       - name: Checkout repository
@@ -28,6 +16,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package-lock.json  # Point to subdirectory
       
       - name: Install dependencies
         run: |
@@ -36,8 +26,8 @@ jobs:
       
       - name: Create required directories
         run: |
-          mkdir -p Posts
-          mkdir -p instagram-captions
+          mkdir -p ../Posts
+          mkdir -p ../instagram-captions
           echo "✓ Directories created"
       
       - name: Generate blog content
@@ -47,9 +37,9 @@ jobs:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: |
           echo "🚀 Starting blog generation..."
-          node scripts/generate-blog.js
+          node generate-blog.js
           
-          LATEST_POST=$(ls -t Posts/*.md | head -1)
+          LATEST_POST=$(ls -t ../Posts/*.md | head -1)
           echo "latest_post=$LATEST_POST" >> $GITHUB_OUTPUT
           echo "✓ Blog generated: $LATEST_POST"
       
@@ -60,10 +50,11 @@ jobs:
           ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
         run: |
           echo "📱 Posting to social media via Zapier..."
-          node scripts/post-social.js "${{ steps.generate_blog.outputs.latest_post }}" || echo "⚠️ Social posting failed (non-critical)"
+          node post-social.js "${{ steps.generate_blog.outputs.latest_post }}" || echo "⚠️ Social posting failed (non-critical)"
       
       - name: Commit changes
         id: commit
+        working-directory: .  # Switch back to root for git commands
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Blog Auto Publisher"
@@ -82,23 +73,7 @@ jobs:
       
       - name: Push changes
         if: steps.commit.outputs.has_changes == 'true'
+        working-directory: .  # Still at root for git push
         run: |
           git push
           echo "✓ Changes pushed"
-      
-      - name: Trigger website rebuild
-        if: success() && steps.commit.outputs.has_changes == 'true'
-        continue-on-error: true
-        run: |
-          curl -X POST "${{ secrets.BLOG_REFRESH_URL }}" \
-            -H "x-api-key: ${{ secrets.BLOG_REFRESH_TOKEN }}" \
-            || echo "⚠️ Webhook failed (non-critical)"
-      
-      - name: Upload Instagram captions
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: instagram-captions-${{ github.run_number }}
-          path: instagram-captions/
-          retention-days: 30
-          if-no-files-found: ignore
