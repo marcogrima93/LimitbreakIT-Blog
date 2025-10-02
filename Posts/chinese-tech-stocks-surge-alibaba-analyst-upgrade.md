@@ -35,7 +35,7 @@ This isn't just analyst speak. It represents a fundamental shift in how the mark
 
 The timing couldn't be better. Chinese tech stocks have been beaten down for so long that any positive catalyst creates explosive upside. **Alibaba's stock** responded immediately to the upgrade, pulling other Chinese tech names along for the ride.
 
-{{image: https://images.unsplash.com/photo-1593472305971-5ae5833b8dbb?ixid=M3w4MTA4NzR8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwdGVjaCUyMHN0b2NrcyUyMHRyYWRpbmclMjBmbG9vciUyMHN1cmdlfGVufDF8MHx8fDE3NTk0MTgxNzB8MA&ixlib=rb-4.1.0&w=800&h=450&fit=crop&q=80, width: 800, height: 450, alt: "Chinese technology stocks rally trading floor"}}
+{{image: https://cassette.sphdigital.com.sg/image/businesstimes/51d94070d0da5cafe89b43f02f431cff63f4ccd38f2a613473ceaebadf510890?w=1200&f=webp, width: 800, height: 450, alt: "Chinese technology stocks rally trading floor"}}
 
 ## **AI Investment Frenzy Drives the Rally**
 
