@@ -3,7 +3,7 @@ name: Auto Blog Generator
 on:
   schedule:
     # Run daily at 6 AM UTC (8 AM CEST)
-    - cron: '0 6 * * *'  # FIXED: needs 5 fields (min hour day month day-of-week)
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -32,6 +32,8 @@ jobs:
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/generate-blog.js
       
