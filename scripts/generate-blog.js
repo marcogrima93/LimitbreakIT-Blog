@@ -310,13 +310,19 @@ async function sendToZapier(blogData) {
       blog_title: blogData.title,
       blog_content: blogData.content,
       blog_url: blogData.url,
-      blog_image_url: blogData.imageUrl
+      blog_image_url: blogData.imageUrl,
+      social_media_hook: blogData.socialMediaHook,
+      social_media_key_insight: blogData.socialMediaKeyInsight,
+      social_media_why_it_matters: blogData.socialMediaWhyItMatters,
+      social_media_hashtags: blogData.socialMediaHashtags
     };
 
     console.log(`   Title: ${payload.blog_title}`);
     console.log(`   URL: ${payload.blog_url}`);
     console.log(`   Image: ${payload.blog_image_url}`);
     console.log(`   Content length: ${payload.blog_content.length} characters`);
+    console.log(`   Social Hook: ${payload.social_media_hook}`);
+    console.log(`   Hashtags: ${payload.social_media_hashtags.join(', ')}`);
 
     const response = await axios.post(ZAPIER_WEBHOOK_URL, payload, {
       headers: {
@@ -516,6 +522,38 @@ For BUSINESS/FUNDING stories:
 Start with "Bottom line:" or "Here's what matters:"
 *Put your key takeaway in italics as a full sentence.*
 
+SOCIAL MEDIA POST GENERATION:
+
+You must also create ONE social media post suitable for LinkedIn, Facebook, and Instagram that adheres to the following requirements:
+
+REQUIREMENTS:
+- Length: 300-450 characters (ensuring readability across all platforms)
+- Tone: Use same tone as blog
+- Make it easy to understand for all people, Don't use complicated wording
+- Start with a compelling hook: a shocking statistic, a thought-provoking question, or a bold statement
+- Follow with 2-3 concise sentences that explain the key insight
+- Incorporate 1-2 professional emojis naturally (options: 🚨 💡 📊 ⚡ 🔥)
+- Do not use em-dashes
+- Generate 4-5 relevant hashtags that mix professional and trending topics
+
+FORMAT:
+[Hook with emoji]
+[Key insight - 1-2 sentences]
+[Why it matters - 1 sentence]
+[Hashtags]
+
+TONE EXAMPLES:
+✅ "🚨 50,000 companies just got exposed. Here's what happened..."
+✅ "This one security flaw could cost you everything 💡"
+❌ "We are pleased to announce..." (too corporate)
+❌ "OMG you won't believe this!!!" (too casual)
+
+CRITICAL: Break down your social media post into these specific fields:
+- "socialMediaHook": The opening hook with emoji (1-2 sentences)
+- "socialMediaKeyInsight": The key insight explanation (1-2 sentences)
+- "socialMediaWhyItMatters": Why this matters (1 sentence)
+- "socialMediaHashtags": Array of 4-5 hashtags (without # symbol, just the text)
+
 COMPLETE JSON RESPONSE:
 
 {
@@ -534,7 +572,11 @@ COMPLETE JSON RESPONSE:
   "image": "/images/blog/descriptive-file-name.jpg",
   "author": "LimitBreakIT Security Insights Team" OR "LimitBreakIT Innovation Team" OR "LimitBreakIT Tech Insights Team",
   "trendScore": 75,
-  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')"
+  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')",
+  "socialMediaHook": "🚨 Compelling hook with emoji that grabs attention",
+  "socialMediaKeyInsight": "1-2 sentences explaining the key insight in simple terms",
+  "socialMediaWhyItMatters": "One sentence explaining why this matters to the reader",
+  "socialMediaHashtags": ["Hashtag1", "Hashtag2", "Hashtag3", "Hashtag4", "Hashtag5"]
 }
 
 🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. No commentary. Just pure JSON starting with { and ending with }.`;
@@ -736,7 +778,11 @@ async function generateBlog() {
     title: trend.title,
     content: content,
     url: `${BLOG_BASE_URL}/${slug}`,
-    imageUrl: rawImageUrl
+    imageUrl: rawImageUrl,
+    socialMediaHook: trend.socialMediaHook || '',
+    socialMediaKeyInsight: trend.socialMediaKeyInsight || '',
+    socialMediaWhyItMatters: trend.socialMediaWhyItMatters || '',
+    socialMediaHashtags: trend.socialMediaHashtags || []
   });
 
   return {
