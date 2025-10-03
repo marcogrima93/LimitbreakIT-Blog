@@ -10,7 +10,7 @@ const yaml = require('js-yaml');
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20146027/u91nr0h/';
+const ZAPIER_WEBHOOK_URL = 'https://hook.eu2.make.com/mva7d3wq0ar33bunjox47a6n0x2wv2z7';
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
