@@ -10,7 +10,8 @@ const yaml = require('js-yaml');
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-const ZAPIER_WEBHOOK_URL = 'https://hook.eu2.make.com/mva7d3wq0ar33bunjox47a6n0x2wv2z7';
+const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || '';
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || '';
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
@@ -294,16 +295,15 @@ async function processInlineImages(content, keywords, category, title) {
 }
 
 // ============================================================================
-// ZAPIER WEBHOOK
+// ZAPIER & MAKE.COM WEBHOOKS
 // ============================================================================
 
-async function sendToZapier(blogData) {
-  if (!ZAPIER_WEBHOOK_URL) {
-    console.warn('⚠️  ZAPIER_WEBHOOK_URL not configured - skipping social media webhook');
+async function sendToWebhook(webhookUrl, webhookName, blogData) {
+  if (!webhookUrl) {
     return;
   }
 
-  console.log('\n📤  Sending blog data to Zapier for social media processing...');
+  console.log(`\n📤  Sending blog data to ${webhookName} for social media processing...`);
 
   try {
     // Format hashtags with # symbol
@@ -329,7 +329,7 @@ async function sendToZapier(blogData) {
     console.log(`   Social Hook: ${payload.social_media_hook}`);
     console.log(`   Hashtags: ${payload.social_media_hashtags}`);
 
-    const response = await axios.post(ZAPIER_WEBHOOK_URL, payload, {
+    const response = await axios.post(webhookUrl, payload, {
       headers: {
         'Content-Type': 'application/json'
       },
@@ -337,19 +337,27 @@ async function sendToZapier(blogData) {
     });
 
     if (response.status === 200) {
-      console.log('✅  Successfully sent to Zapier webhook');
+      console.log(`✅  Successfully sent to ${webhookName} webhook`);
       console.log(`   Response: ${response.data?.status || 'OK'}`);
     }
   } catch (error) {
-    console.error('❌  Failed to send to Zapier:');
+    console.error(`❌  Failed to send to ${webhookName}:`);
     if (error.response) {
       console.error(`   Status: ${error.response.status}`);
       console.error(`   Message: ${error.response.data?.message || error.message}`);
     } else {
       console.error(`   ${error.message}`);
     }
-    console.warn('⚠️  Continuing despite Zapier error...');
+    console.warn(`⚠️  Continuing despite ${webhookName} error...`);
   }
+}
+
+async function sendToZapier(blogData) {
+  await sendToWebhook(ZAPIER_WEBHOOK_URL, 'Zapier', blogData);
+}
+
+async function sendToMake(blogData) {
+  await sendToWebhook(MAKE_WEBHOOK_URL, 'Make.com', blogData);
 }
 
 // ============================================================================
@@ -790,6 +798,18 @@ async function generateBlog() {
     socialMediaHashtags: trend.socialMediaHashtags || []
   });
 
+  // Send to Make.com for social media processing
+  await sendToMake({
+    title: trend.title,
+    content: content,
+    url: `${BLOG_BASE_URL}/${slug}`,
+    imageUrl: rawImageUrl,
+    socialMediaHook: trend.socialMediaHook || '',
+    socialMediaKeyInsight: trend.socialMediaKeyInsight || '',
+    socialMediaWhyItMatters: trend.socialMediaWhyItMatters || '',
+    socialMediaHashtags: trend.socialMediaHashtags || []
+  });
+
   return {
     slug,
     title: trend.title,
@@ -810,6 +830,19 @@ async function generateBlog() {
     if (!UNSPLASH_ACCESS_KEY) {
       console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - will use placeholder images');
       console.warn('   Get free key at: https://unsplash.com/developers\n');
+    }
+
+    if (!ZAPIER_WEBHOOK_URL && !MAKE_WEBHOOK_URL) {
+      console.warn('⚠️  No webhook URLs configured (ZAPIER_WEBHOOK_URL or MAKE_WEBHOOK_URL)');
+      console.warn('   Social media data will not be sent to any automation platform\n');
+    } else {
+      if (ZAPIER_WEBHOOK_URL) {
+        console.log('✓ Zapier webhook configured');
+      }
+      if (MAKE_WEBHOOK_URL) {
+        console.log('✓ Make.com webhook configured');
+      }
+      console.log('');
     }
 
     const result = await generateBlog();
