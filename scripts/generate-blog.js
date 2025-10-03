@@ -10,6 +10,7 @@ const yaml = require('js-yaml');
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
+const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20146027/u91nr0h/';
 const POSTS_DIR = 'Posts';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
@@ -177,19 +178,16 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
 
   try {
     let searchTerms;
-    let resultIndex = 0; // Which result to pick from the array
+    let resultIndex = 0;
     
     if (customQuery) {
-      // Use AI-provided search query directly for inline images
       searchTerms = customQuery;
       console.log(`🖼️  Using AI search query: "${searchTerms}" (${size})`);
     } else if (size === 'inline') {
-      // Fallback: use different keywords to avoid header duplicate
       searchTerms = keywords.slice(1, 4).join(' ') || `${category} technology`;
-      resultIndex = 1; // Use second result if available
+      resultIndex = 1;
       console.log(`🖼️  Searching Unsplash (fallback): "${searchTerms}" (${size})`);
     } else {
-      // Header image
       searchTerms = [category.toLowerCase(), ...keywords.slice(0, 2)].join(' ');
       console.log(`🖼️  Searching Unsplash: "${searchTerms}" (${size})`);
     }
@@ -197,7 +195,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
     const { data } = await axios.get('https://api.unsplash.com/search/photos', {
       params: {
         query: searchTerms,
-        per_page: 5, // Get multiple results to avoid duplicates
+        per_page: 5,
         orientation: 'landscape',
         content_filter: 'high'
       },
@@ -208,7 +206,6 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
     });
 
     if (data.results && data.results.length > 0) {
-      // Pick the appropriate result (avoid duplicates for inline images)
       const photoIndex = Math.min(resultIndex, data.results.length - 1);
       const photo = data.results[photoIndex];
 
@@ -227,6 +224,7 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
 
       return {
         url: optimizedUrl,
+        rawUrl: photo.urls.raw,
         alt: photo.alt_description || `${title} - ${category} technology`,
         credit: `Photo by ${photo.user.name} on Unsplash`,
         downloadLocation: photo.links.download_location,
@@ -254,7 +252,6 @@ async function triggerUnsplashDownload(downloadLocation) {
 }
 
 async function processInlineImages(content, keywords, category, title) {
-  // Find all {{image:...}} tags
   const imageTagRegex = /\{\{image:\s*([^,]+),\s*width:\s*(\d+),\s*height:\s*(\d+),\s*alt:\s*"([^"]+)"\}\}/g;
   const matches = [...content.matchAll(imageTagRegex)];
 
@@ -272,19 +269,17 @@ async function processInlineImages(content, keywords, category, title) {
     
     console.log(`🖼️  AI requested image for: "${aiSearchQuery.trim()}"`);
 
-    // Use the AI's descriptive search query directly
     const imageData = await fetchUnsplashImage(
       keywords,
       category,
       title,
       'inline',
-      aiSearchQuery.trim() // Pass AI's specific query
+      aiSearchQuery.trim()
     );
 
     if (imageData) {
       await triggerUnsplashDownload(imageData.downloadLocation);
       
-      // Replace the {{image:...}} tag with the actual Unsplash URL
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
       updatedContent = updatedContent.replace(fullMatch, replacement);
       
@@ -296,6 +291,54 @@ async function processInlineImages(content, keywords, category, title) {
   }
 
   return updatedContent;
+}
+
+// ============================================================================
+// ZAPIER WEBHOOK
+// ============================================================================
+
+async function sendToZapier(blogData) {
+  if (!ZAPIER_WEBHOOK_URL) {
+    console.warn('⚠️  ZAPIER_WEBHOOK_URL not configured - skipping social media webhook');
+    return;
+  }
+
+  console.log('\n📤  Sending blog data to Zapier for social media processing...');
+
+  try {
+    const payload = {
+      blog_title: blogData.title,
+      blog_content: blogData.content,
+      blog_url: blogData.url,
+      blog_image_url: blogData.imageUrl
+    };
+
+    console.log(`   Title: ${payload.blog_title}`);
+    console.log(`   URL: ${payload.blog_url}`);
+    console.log(`   Image: ${payload.blog_image_url}`);
+    console.log(`   Content length: ${payload.blog_content.length} characters`);
+
+    const response = await axios.post(ZAPIER_WEBHOOK_URL, payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    if (response.status === 200) {
+      console.log('✅  Successfully sent to Zapier webhook');
+      console.log(`   Response: ${response.data?.status || 'OK'}`);
+    }
+  } catch (error) {
+    console.error('❌  Failed to send to Zapier:');
+    if (error.response) {
+      console.error(`   Status: ${error.response.status}`);
+      console.error(`   Message: ${error.response.data?.message || error.message}`);
+    } else {
+      console.error(`   ${error.message}`);
+    }
+    console.warn('⚠️  Continuing despite Zapier error...');
+  }
 }
 
 // ============================================================================
@@ -529,8 +572,6 @@ COMPLETE JSON RESPONSE:
 
     let raw = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
-    // CRITICAL: sonar-reasoning-pro returns <think>...</think> tags before JSON
-    // Strip everything before the first { and after the last }
     const jsonStart = raw.indexOf('{');
     const jsonEnd = raw.lastIndexOf('}');
     
@@ -538,7 +579,6 @@ COMPLETE JSON RESPONSE:
       raw = raw.substring(jsonStart, jsonEnd + 1);
     }
 
-    // Also remove any markdown wrappers
     raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '').trim();
 
     const result = JSON.parse(raw);
@@ -622,8 +662,8 @@ async function generateBlog() {
     console.log(`⚠️  Slug collision detected, using: ${slug}`);
   }
 
-  // Fetch header image
   let imageUrl = null;
+  let rawImageUrl = null;
   let imageCredit = null;
 
   console.log('\n🖼️  Fetching blog header image (1200x600)...');
@@ -636,12 +676,14 @@ async function generateBlog() {
 
   if (imageData) {
     imageUrl = imageData.url;
+    rawImageUrl = imageData.rawUrl;
     imageCredit = imageData.credit;
     await triggerUnsplashDownload(imageData.downloadLocation);
     console.log(`✓ Header image: ${imageUrl.substring(0, 80)}...`);
   } else {
     console.warn('⚠️  Could not fetch header image from Unsplash');
     imageUrl = `/images/blog/${slug}.jpg`;
+    rawImageUrl = imageUrl;
   }
 
   let content = stripFootnotes(trend.content || '');
@@ -688,6 +730,20 @@ async function generateBlog() {
   console.log(`🔖  Tags: ${frontmatter.tags.join(', ')}`);
   console.log(`🖼️  Header image: ${imageUrl.substring(0, 80)}...`);
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
+
+  // Send to Zapier for social media processing
+  await sendToZapier({
+    title: trend.title,
+    content: content,
+    url: `${BLOG_BASE_URL}/${slug}`,
+    imageUrl: rawImageUrl
+  });
+
+  return {
+    slug,
+    title: trend.title,
+    url: `${BLOG_BASE_URL}/${slug}`
+  };
 }
 
 // ============================================================================
@@ -705,8 +761,9 @@ async function generateBlog() {
       console.warn('   Get free key at: https://unsplash.com/developers\n');
     }
 
-    await generateBlog();
-    console.log('\n🎉  Generation complete!\n');
+    const result = await generateBlog();
+    console.log('\n🎉  Generation complete!');
+    console.log(`📝  Blog URL: ${result.url}\n`);
   } catch (error) {
     console.error('\n💥  Generation failed:');
     console.error(error.message);
