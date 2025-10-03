@@ -306,6 +306,11 @@ async function sendToZapier(blogData) {
   console.log('\n📤  Sending blog data to Zapier for social media processing...');
 
   try {
+    // Format hashtags with # symbol
+    const formattedHashtags = (blogData.socialMediaHashtags || [])
+      .map(tag => tag.startsWith('#') ? tag : `#${tag}`)
+      .join(' ');
+
     const payload = {
       blog_title: blogData.title,
       blog_content: blogData.content,
@@ -314,7 +319,7 @@ async function sendToZapier(blogData) {
       social_media_hook: blogData.socialMediaHook,
       social_media_key_insight: blogData.socialMediaKeyInsight,
       social_media_why_it_matters: blogData.socialMediaWhyItMatters,
-      social_media_hashtags: blogData.socialMediaHashtags
+      social_media_hashtags: formattedHashtags
     };
 
     console.log(`   Title: ${payload.blog_title}`);
@@ -322,7 +327,7 @@ async function sendToZapier(blogData) {
     console.log(`   Image: ${payload.blog_image_url}`);
     console.log(`   Content length: ${payload.blog_content.length} characters`);
     console.log(`   Social Hook: ${payload.social_media_hook}`);
-    console.log(`   Hashtags: ${payload.social_media_hashtags.join(', ')}`);
+    console.log(`   Hashtags: ${payload.social_media_hashtags}`);
 
     const response = await axios.post(ZAPIER_WEBHOOK_URL, payload, {
       headers: {
@@ -552,7 +557,7 @@ CRITICAL: Break down your social media post into these specific fields:
 - "socialMediaHook": The opening hook with emoji (1-2 sentences)
 - "socialMediaKeyInsight": The key insight explanation (1-2 sentences)
 - "socialMediaWhyItMatters": Why this matters (1 sentence)
-- "socialMediaHashtags": Array of 4-5 hashtags
+- "socialMediaHashtags": Array of 4-5 hashtags (without # symbol, just the text)
 
 COMPLETE JSON RESPONSE:
 
