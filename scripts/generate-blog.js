@@ -552,7 +552,7 @@ CRITICAL: Break down your social media post into these specific fields:
 - "socialMediaHook": The opening hook with emoji (1-2 sentences)
 - "socialMediaKeyInsight": The key insight explanation (1-2 sentences)
 - "socialMediaWhyItMatters": Why this matters (1 sentence)
-- "socialMediaHashtags": Array of 4-5 hashtags (without # symbol, just the text)
+- "socialMediaHashtags": Array of 4-5 hashtags
 
 COMPLETE JSON RESPONSE:
 
