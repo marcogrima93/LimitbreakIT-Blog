@@ -6,11 +6,11 @@
     },
     {
       "date": "2025-10-07",
-      "action": "SKIP"
+      "skip": true
     },
     {
       "date": "2025-10-08",
-      "action": "NO_SOCIAL"
+      "skip_social": true
     },
     {
       "date": "2025-10-09",
@@ -21,6 +21,9 @@
       "date": "2025-10-10",
       "topic": "Microsoft AI security breach",
       "skip_social": false
+    },
+    {
+      "date": "2025-10-11"
     }
   ]
 }
