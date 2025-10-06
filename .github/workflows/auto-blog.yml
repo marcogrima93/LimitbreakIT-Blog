@@ -1,10 +1,39 @@
 name: Auto Blog Generator
-
 on:
   schedule:
     # Run daily at 6 AM UTC (8 AM CEST)
     - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger
+    inputs:
+      override_topic:
+        description: 'Override topic for the blog post (optional)'
+        required: false
+        default: ''
+        type: string
+      override_article_url:
+        description: 'URL of article to base the blog on (optional)'
+        required: false
+        default: ''
+        type: string
+      skip_social_posts:
+        description: 'Skip social media post generation'
+        required: false
+        default: false
+        type: boolean
+      scheduled_day:
+        description: 'Only run on specific day (e.g., Monday, Tuesday)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - 'Monday'
+          - 'Tuesday'
+          - 'Wednesday'
+          - 'Thursday'
+          - 'Friday'
+          - 'Saturday'
+          - 'Sunday'
 
 permissions:
   contents: write
@@ -35,6 +64,11 @@ jobs:
           ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Manual workflow dispatch inputs
+          OVERRIDE_TOPIC: ${{ github.event.inputs.override_topic || '' }}
+          OVERRIDE_ARTICLE_URL: ${{ github.event.inputs.override_article_url || '' }}
+          SKIP_SOCIAL_POSTS: ${{ github.event.inputs.skip_social_posts || 'false' }}
+          SCHEDULED_DAY: ${{ github.event.inputs.scheduled_day || '' }}
         run: node scripts/generate-blog.js
       
       - name: Commit and push changes
@@ -45,7 +79,14 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
+            # Create commit message with override info if applicable
+            COMMIT_MSG="🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
+            if [ -n "${{ github.event.inputs.override_topic }}" ]; then
+              COMMIT_MSG="$COMMIT_MSG (Topic: ${{ github.event.inputs.override_topic }})"
+            elif [ -n "${{ github.event.inputs.override_article_url }}" ]; then
+              COMMIT_MSG="$COMMIT_MSG (Based on article)"
+            fi
+            git commit -m "$COMMIT_MSG"
             git push
           fi
       
