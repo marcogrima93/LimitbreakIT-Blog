@@ -1,39 +1,23 @@
 name: Auto Blog Generator
+
 on:
   schedule:
-    # Run daily at 6 AM UTC (8 AM CEST)
-    - cron: '0 6 * * *'
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:
     inputs:
       override_topic:
-        description: 'Override topic for the blog post (optional)'
+        description: 'Override topic (e.g., "AI regulation in Europe")'
         required: false
-        default: ''
         type: string
-      override_article_url:
-        description: 'URL of article to base the blog on (optional)'
+      override_url:
+        description: 'Override article URL to base blog on'
         required: false
-        default: ''
         type: string
-      skip_social_posts:
-        description: 'Skip social media post generation'
+      skip_social:
+        description: 'Skip social media post creation'
         required: false
-        default: false
         type: boolean
-      scheduled_day:
-        description: 'Only run on specific day (e.g., Monday, Tuesday)'
-        required: false
-        default: ''
-        type: choice
-        options:
-          - ''
-          - 'Monday'
-          - 'Tuesday'
-          - 'Wednesday'
-          - 'Thursday'
-          - 'Friday'
-          - 'Saturday'
-          - 'Sunday'
+        default: false
 
 permissions:
   contents: write
@@ -41,22 +25,21 @@ permissions:
 jobs:
   generate-blog:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Install dependencies
         run: npm install axios js-yaml
-      
+
       - name: Generate blog content
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
@@ -64,13 +47,11 @@ jobs:
           ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Manual workflow dispatch inputs
-          OVERRIDE_TOPIC: ${{ github.event.inputs.override_topic || '' }}
-          OVERRIDE_ARTICLE_URL: ${{ github.event.inputs.override_article_url || '' }}
-          SKIP_SOCIAL_POSTS: ${{ github.event.inputs.skip_social_posts || 'false' }}
-          SCHEDULED_DAY: ${{ github.event.inputs.scheduled_day || '' }}
+          OVERRIDE_TOPIC: ${{ inputs.override_topic }}
+          OVERRIDE_URL: ${{ inputs.override_url }}
+          SKIP_SOCIAL: ${{ inputs.skip_social }}
         run: node scripts/generate-blog.js
-      
+
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
@@ -79,17 +60,10 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            # Create commit message with override info if applicable
-            COMMIT_MSG="🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
-            if [ -n "${{ github.event.inputs.override_topic }}" ]; then
-              COMMIT_MSG="$COMMIT_MSG (Topic: ${{ github.event.inputs.override_topic }})"
-            elif [ -n "${{ github.event.inputs.override_article_url }}" ]; then
-              COMMIT_MSG="$COMMIT_MSG (Based on article)"
-            fi
-            git commit -m "$COMMIT_MSG"
+            git commit -m "🤖 Auto-generated blog post: $(date +'%B %d, %Y')"
             git push
           fi
-      
+
       - name: Trigger website refresh
         if: success()
         run: |
