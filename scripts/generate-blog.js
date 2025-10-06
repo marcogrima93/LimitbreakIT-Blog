@@ -46,38 +46,43 @@ async function checkScheduledOverride() {
   if (todaySchedule) {
     console.log(`📅  Found scheduled override for ${today}:`);
     
-    // Check for SKIP directive
-    if (todaySchedule.action === 'SKIP') {
-      console.log('   Action: SKIP - Exiting blog generation');
+    // Check for complete day skip
+    if (todaySchedule.skip === true) {
+      console.log('   Skip: true - Exiting blog generation');
       console.log('\n⏭️  Blog generation skipped for today per schedule configuration');
       process.exit(0);
     }
     
-    // Check for NO_SOCIAL directive
-    if (todaySchedule.action === 'NO_SOCIAL') {
-      console.log('   Action: NO_SOCIAL - Blog will be created but no social media posts');
-      return { type: 'no_social' };
-    }
+    // Create override object with defaults
+    let override = null;
     
     if (todaySchedule.topic) {
       console.log(`   Topic: "${todaySchedule.topic}"`);
-      const override = { type: 'topic', value: todaySchedule.topic };
-      // Check if this topic override also has NO_SOCIAL
-      if (todaySchedule.skip_social === true) {
-        override.skipSocial = true;
-        console.log('   Skip Social: true');
-      }
-      return override;
+      override = { type: 'topic', value: todaySchedule.topic };
     } else if (todaySchedule.url) {
       console.log(`   URL: "${todaySchedule.url}"`);
-      const override = { type: 'url', value: todaySchedule.url };
-      // Check if this URL override also has NO_SOCIAL
-      if (todaySchedule.skip_social === true) {
-        override.skipSocial = true;
-        console.log('   Skip Social: true');
-      }
+      override = { type: 'url', value: todaySchedule.url };
+    }
+    
+    // Check for social media skip (defaults to false if not specified)
+    const skipSocial = todaySchedule.skip_social === true;
+    if (skipSocial) {
+      console.log('   Skip Social: true');
+    }
+    
+    // If we have an override, add the skipSocial flag
+    if (override) {
+      override.skipSocial = skipSocial;
       return override;
     }
+    
+    // If no topic/url but skip_social is set, return social skip indicator
+    if (skipSocial) {
+      return { type: 'skip_social_only' };
+    }
+    
+    // If date entry exists but no specific actions, continue with defaults
+    console.log('   No specific overrides found, continuing with defaults');
   }
   
   return null;
@@ -798,7 +803,7 @@ async function generateBlog() {
     override = await checkScheduledOverride();
     if (override) {
       // Check if the scheduled override wants to skip social
-      if (override.type === 'no_social') {
+      if (override.type === 'skip_social_only') {
         skipSocial = true;
         override = null; // Reset override since it's just a social skip
       } else if (override.skipSocial) {
