@@ -45,12 +45,38 @@ async function checkScheduledOverride() {
   
   if (todaySchedule) {
     console.log(`📅  Found scheduled override for ${today}:`);
+    
+    // Check for SKIP directive
+    if (todaySchedule.action === 'SKIP') {
+      console.log('   Action: SKIP - Exiting blog generation');
+      console.log('\n⏭️  Blog generation skipped for today per schedule configuration');
+      process.exit(0);
+    }
+    
+    // Check for NO_SOCIAL directive
+    if (todaySchedule.action === 'NO_SOCIAL') {
+      console.log('   Action: NO_SOCIAL - Blog will be created but no social media posts');
+      return { type: 'no_social' };
+    }
+    
     if (todaySchedule.topic) {
       console.log(`   Topic: "${todaySchedule.topic}"`);
-      return { type: 'topic', value: todaySchedule.topic };
+      const override = { type: 'topic', value: todaySchedule.topic };
+      // Check if this topic override also has NO_SOCIAL
+      if (todaySchedule.skip_social === true) {
+        override.skipSocial = true;
+        console.log('   Skip Social: true');
+      }
+      return override;
     } else if (todaySchedule.url) {
       console.log(`   URL: "${todaySchedule.url}"`);
-      return { type: 'url', value: todaySchedule.url };
+      const override = { type: 'url', value: todaySchedule.url };
+      // Check if this URL override also has NO_SOCIAL
+      if (todaySchedule.skip_social === true) {
+        override.skipSocial = true;
+        console.log('   Skip Social: true');
+      }
+      return override;
     }
   }
   
@@ -339,13 +365,13 @@ async function processInlineImages(content, keywords, category, title) {
 // ZAPIER & MAKE.COM WEBHOOKS
 // ============================================================================
 
-async function sendToWebhook(webhookUrl, webhookName, blogData) {
+async function sendToWebhook(webhookUrl, webhookName, blogData, skipSocial = false) {
   if (!webhookUrl) {
     return;
   }
 
-  if (SKIP_SOCIAL) {
-    console.log(`⏭️  Skipping ${webhookName} (SKIP_SOCIAL=true)`);
+  if (SKIP_SOCIAL || skipSocial) {
+    console.log(`⏭️  Skipping ${webhookName} (SKIP_SOCIAL=true or scheduled skip_social)`);
     return;
   }
 
@@ -398,19 +424,19 @@ async function sendToWebhook(webhookUrl, webhookName, blogData) {
   }
 }
 
-async function sendToZapier(blogData) {
-  await sendToWebhook(ZAPIER_WEBHOOK_URL, 'Zapier', blogData);
+async function sendToZapier(blogData, skipSocial = false) {
+  await sendToWebhook(ZAPIER_WEBHOOK_URL, 'Zapier', blogData, skipSocial);
 }
 
-async function sendToMake(blogData) {
-  await sendToWebhook(MAKE_WEBHOOK_URL, 'Make.com', blogData);
+async function sendToMake(blogData, skipSocial = false) {
+  await sendToWebhook(MAKE_WEBHOOK_URL, 'Make.com', blogData, skipSocial);
 }
 
 // ============================================================================
 // PERPLEXITY API
 // ============================================================================
 
-async function callPerplexity(retryCount = 0, existingTopics = [], override = null) {
+async function callPerplexity(retryCount = 0, existingTopics = [], override = null, skipSocialGeneration = false) {
   console.log(`🔍  Calling Perplexity… ${retryCount > 0 ? `(Retry ${retryCount}/2)` : ''}`);
 
   const system = `You are the world's best trending tech blogger. You cover EVERYTHING hot in tech - from devastating cyberattacks to game-changing product launches, from billion-dollar acquisitions to industry-shaking scandals.
@@ -606,7 +632,11 @@ For BUSINESS/FUNDING stories:
 
 **Final section** (100-150 words)
 Start with "Bottom line:" or "Here's what matters:"
-*Put your key takeaway in italics as a full sentence.*
+*Put your key takeaway in italics as a full sentence.*`;
+
+  // Only add social media instructions if not skipping social generation
+  if (!skipSocialGeneration) {
+    userPrompt += `
 
 SOCIAL MEDIA POST GENERATION:
 
@@ -638,7 +668,16 @@ CRITICAL: Break down your social media post into these specific fields:
 - "socialMediaHook": The opening hook with emoji (1-2 sentences)
 - "socialMediaKeyInsight": The key insight explanation (1-2 sentences)
 - "socialMediaWhyItMatters": Why this matters (1 sentence)
-- "socialMediaHashtags": Array of 4-5 hashtags (without # symbol, just the text)
+- "socialMediaHashtags": Array of 4-5 hashtags (without # symbol, just the text)`;
+  } else {
+    userPrompt += `
+
+SOCIAL MEDIA POST SKIPPED:
+- Do NOT generate social media fields as they will not be used
+- Focus only on the blog content and metadata`;
+  }
+
+  userPrompt += `
 
 COMPLETE JSON RESPONSE:
 
@@ -658,11 +697,11 @@ COMPLETE JSON RESPONSE:
   "image": "/images/blog/descriptive-file-name.jpg",
   "author": "Marco Grima",
   "trendScore": 75,
-  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')",
+  "sources": "Mention 1-2 credible sources (e.g., 'The Verge, Bloomberg')"${!skipSocialGeneration ? `,
   "socialMediaHook": "🚨 Compelling hook with emoji that grabs attention",
   "socialMediaKeyInsight": "1-2 sentences explaining the key insight in simple terms",
   "socialMediaWhyItMatters": "One sentence explaining why this matters to the reader",
-  "socialMediaHashtags": ["Hashtag1", "Hashtag2", "Hashtag3", "Hashtag4", "Hashtag5"]
+  "socialMediaHashtags": ["Hashtag1", "Hashtag2", "Hashtag3", "Hashtag4", "Hashtag5"]` : ''}
 }
 
 🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. No commentary. Just pure JSON starting with { and ending with }.`;
@@ -719,7 +758,7 @@ COMPLETE JSON RESPONSE:
         const waitTime = 2000 * Math.pow(2, retryCount);
         console.warn(`⚠️  Response inadequate (${wordCount} words, ${subheadings} subheadings). Retrying in ${waitTime/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        return callPerplexity(retryCount + 1, existingTopics, override);
+        return callPerplexity(retryCount + 1, existingTopics, override, skipSocialGeneration);
       }
     }
 
@@ -731,7 +770,7 @@ COMPLETE JSON RESPONSE:
       const waitTime = 2000 * Math.pow(2, retryCount);
       console.log(`⏳ Retrying in ${waitTime/1000}s...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
-      return callPerplexity(retryCount + 1, existingTopics, override);
+      return callPerplexity(retryCount + 1, existingTopics, override, skipSocialGeneration);
     }
 
     throw error;
@@ -747,6 +786,7 @@ async function generateBlog() {
 
   // Check for manual or scheduled override
   let override = null;
+  let skipSocial = SKIP_SOCIAL; // Start with env variable
 
   if (OVERRIDE_TOPIC) {
     override = { type: 'topic', value: OVERRIDE_TOPIC };
@@ -756,9 +796,18 @@ async function generateBlog() {
     console.log(`🎯  Manual URL override: "${OVERRIDE_URL}"\n`);
   } else {
     override = await checkScheduledOverride();
+    if (override) {
+      // Check if the scheduled override wants to skip social
+      if (override.type === 'no_social') {
+        skipSocial = true;
+        override = null; // Reset override since it's just a social skip
+      } else if (override.skipSocial) {
+        skipSocial = true;
+      }
+    }
   }
 
-  if (SKIP_SOCIAL) {
+  if (skipSocial) {
     console.log('⏭️  Social media posting is DISABLED for this run\n');
   }
 
@@ -766,7 +815,7 @@ async function generateBlog() {
   const existing = await fetchExistingSlugs();
   console.log(`✓ Found ${EXISTING_POSTS_CACHE.length} existing posts to avoid duplicating\n`);
 
-  const trend = await callPerplexity(0, EXISTING_POSTS_CACHE, override);
+  const trend = await callPerplexity(0, EXISTING_POSTS_CACHE, override, skipSocial);
   console.log(`📰  Received: "${trend.title}"`);
 
   const validation = validateContent(trend);
@@ -886,7 +935,7 @@ async function generateBlog() {
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
 
   // Send to webhooks for social media processing (unless skipped)
-  if (!SKIP_SOCIAL) {
+  if (!skipSocial) {
     const blogData = {
       title: trend.title,
       content: content,
@@ -898,10 +947,10 @@ async function generateBlog() {
       socialMediaHashtags: trend.socialMediaHashtags || []
     };
 
-    await sendToZapier(blogData);
-    await sendToMake(blogData);
+    await sendToZapier(blogData, false);
+    await sendToMake(blogData, false);
   } else {
-    console.log('\n⏭️  Skipped social media webhooks (SKIP_SOCIAL=true)');
+    console.log('\n⏭️  Skipped social media webhooks (social media disabled)');
   }
 
   return {
