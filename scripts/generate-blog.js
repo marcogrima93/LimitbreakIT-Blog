@@ -33,13 +33,12 @@ async function loadScheduleConfig() {
     const config = JSON.parse(configData);
     return config.scheduled_overrides || [];
   } catch (error) {
-    // Config file doesn't exist or is invalid - that's okay
     return [];
   }
 }
 
 async function checkScheduledOverride() {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
   const schedules = await loadScheduleConfig();
   
   const todaySchedule = schedules.find(s => s.date === today);
@@ -65,8 +64,8 @@ async function checkScheduledOverride() {
 function slugify(text) {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\\\\s-]/g, '')
-    .replace(/\\\\s+/g, '-')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$|^-$/g, '')
     .substring(0, 60);
@@ -77,11 +76,11 @@ function stripColons(str = '') {
 }
 
 function stripFootnotes(markdown) {
-  return markdown.replace(/\\\\[\\\\d{1,4}\\\\]/g, '');
+  return markdown.replace(/\[\d{1,4}\]/g, '');
 }
 
 function countWords(text) {
-  return text.split(/\\\\s+/).filter(w => w.length > 0).length;
+  return text.split(/\s+/).filter(w => w.length > 0).length;
 }
 
 function validateContent(trend) {
@@ -93,12 +92,12 @@ function validateContent(trend) {
     errors.push(`Content too short: ${wordCount} words (minimum: ${MIN_WORD_COUNT})`);
   }
 
-  const subheadings = (trend.content.match(/^##\\\\s+.+$/gm) || []).length;
+  const subheadings = (trend.content.match(/^##\s+.+$/gm) || []).length;
   if (subheadings < MIN_SUBHEADINGS) {
     errors.push(`Insufficient structure: ${subheadings} subheadings (minimum: ${MIN_SUBHEADINGS})`);
   }
 
-  const hasDataPoints = /\\\\d+%|\\\\$[\\\\d,]+B?M?|[\\\\d,]+\\\\s+(users|companies|million|billion)/i.test(
+  const hasDataPoints = /\d+%|\$[\d,]+B?M?|[\d,]+\s+(users|companies|million|billion)/i.test(
     trend.content
   );
   if (!hasDataPoints) {
@@ -131,11 +130,11 @@ async function fetchExistingSlugs() {
 
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
-        const titleMatch = content.match(/^title:\\\\s*(.+)$/m);
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
         if (titleMatch) {
           posts.push(titleMatch[1].trim());
         }
-        const excerptMatch = content.match(/^excerpt:\\\\s*(.+)$/m);
+        const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
         if (excerptMatch) {
           posts.push(excerptMatch[1].trim());
         }
@@ -151,31 +150,31 @@ async function fetchExistingSlugs() {
   try {
     const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
 
-    const slugMatches = html.match(/\\\\/insights-news\\\\/([a-z0-9-]+)/g) || [];
+    const slugMatches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
     slugMatches.forEach(match => {
       const slug = match.split('/').pop();
       if (slug && slug.length > 5) slugs.add(slug);
     });
 
     const titlePatterns = [
-      /<h[1-4][^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\\\\/h[1-4]>/gi,
-      /<h[1-4][^>]*>([^<]{20,120})<\\\\/h[1-4]>/g,
-      /<a[^>]*href="\\\\/insights-news\\\\/[^"]*"[^>]*>([^<]{20,120})<\\\\/a>/g,
-      /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\\\\/span>/gi,
-      /<div[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\\\\/div>/gi
+      /<h[1-4][^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/h[1-4]>/gi,
+      /<h[1-4][^>]*>([^<]{20,120})<\/h[1-4]>/g,
+      /<a[^>]*href="\/insights-news\/[^"]*"[^>]*>([^<]{20,120})<\/a>/g,
+      /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/span>/gi,
+      /<div[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/div>/gi
     ];
 
     titlePatterns.forEach(pattern => {
       const matches = html.matchAll(pattern);
       for (const match of matches) {
-        const title = match[1].replace(/\\\\s+/g, ' ').trim();
+        const title = match[1].replace(/\s+/g, ' ').trim();
         if (title.length > 15 && title.length < 150) {
           posts.push(title);
         }
       }
     });
 
-    const jsonLdMatch = html.match(/<script[^>]*type="application\\\\/ld\\\\+json"[^>]*>(.*?)<\\\\/script>/s);
+    const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/s);
     if (jsonLdMatch) {
       try {
         const jsonData = JSON.parse(jsonLdMatch[1]);
@@ -197,7 +196,7 @@ async function fetchExistingSlugs() {
 
   const uniquePosts = [...new Set(posts)]
     .filter(p => p.length > 15 && p.length < 150)
-    .map(p => p.replace(/\\\\s+/g, ' ').trim());
+    .map(p => p.replace(/\s+/g, ' ').trim());
 
   EXISTING_POSTS_CACHE.push(...uniquePosts);
 
@@ -207,7 +206,7 @@ async function fetchExistingSlugs() {
 }
 
 // ============================================================================
-// IMAGE FETCHING WITH CREDIT TRACKING
+// IMAGE FETCHING
 // ============================================================================
 
 async function fetchUnsplashImage(keywords, category, title, size = 'header', customQuery = null) {
@@ -267,7 +266,6 @@ async function fetchUnsplashImage(keywords, category, title, size = 'header', cu
         rawUrl: photo.urls.raw,
         alt: photo.alt_description || `${title} - ${category} technology`,
         credit: `Photo by ${photo.user.name} on Unsplash`,
-        photographer: photo.user.name,
         downloadLocation: photo.links.download_location,
         width,
         height
@@ -293,18 +291,18 @@ async function triggerUnsplashDownload(downloadLocation) {
 }
 
 async function processInlineImages(content, keywords, category, title) {
-  const imageTagRegex = /\\\\{\\\\{image:\\\\s*([^,]+),\\\\s*width:\\\\s*(\\\\d+),\\\\s*height:\\\\s*(\\\\d+),\\\\s*alt:\\\\s*"([^"]+)"\\\\}\\\\}/g;
+  const imageTagRegex = /\{\{image:\s*([^,]+),\s*width:\s*(\d+),\s*height:\s*(\d+),\s*alt:\s*"([^"]+)"\}\}/g;
   const matches = [...content.matchAll(imageTagRegex)];
+  const imageCredits = [];
 
   if (matches.length === 0) {
     console.log('ℹ️  No inline image tags found in AI content');
-    return { content, credits: [] };
+    return { content, credits: imageCredits };
   }
 
   console.log(`🖼️  Found ${matches.length} inline image tag(s) to process`);
 
   let updatedContent = content;
-  const imageCredits = [];
 
   for (const match of matches) {
     const [fullMatch, aiSearchQuery, width, height, alt] = match;
@@ -325,7 +323,6 @@ async function processInlineImages(content, keywords, category, title) {
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
       updatedContent = updatedContent.replace(fullMatch, replacement);
       
-      // Collect credit for this inline image
       imageCredits.push(imageData.credit);
       
       console.log(`✓ Replaced with: ${imageData.url.substring(0, 70)}...`);
@@ -352,7 +349,7 @@ async function sendToWebhook(webhookUrl, webhookName, blogData) {
     return;
   }
 
-  console.log(`\\n📤  Sending blog data to ${webhookName} for social media processing...`);
+  console.log(`\n📤  Sending blog data to ${webhookName} for social media processing...`);
 
   try {
     // Format hashtags with # symbol
@@ -410,7 +407,7 @@ async function sendToMake(blogData) {
 }
 
 // ============================================================================
-// PERPLEXITY API WITH OVERRIDE SUPPORT
+// PERPLEXITY API
 // ============================================================================
 
 async function callPerplexity(retryCount = 0, existingTopics = [], override = null) {
@@ -467,7 +464,7 @@ YAML HEADER RULES:
 Return ONLY valid JSON (no markdown code blocks, no backticks, just pure JSON starting with { and ending with }).`;
 
   const existingTopicsList = existingTopics.length > 0 
-    ? `\\n\\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\\n')}\\n\\nCRITICAL DUPLICATE DETECTION:\\n- Use fuzzy matching to detect duplicates even if titles differ slightly\\n- Example: "Meta Glasses" vs "Meta's $799 Smart Glasses" = DUPLICATE\\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE\\n- Check for overlap in: companies mentioned, technology type, or incident type`
+    ? `\n\nEXISTING BLOG POSTS (DO NOT duplicate these topics or angles):\n${existingTopics.slice(0, 50).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCRITICAL DUPLICATE DETECTION:\n- Use fuzzy matching to detect duplicates even if titles differ slightly\n- Example: "Meta Glasses" vs "Meta's $799 Smart Glasses" = DUPLICATE\n- If your chosen topic is even remotely similar to anything above, PICK SOMETHING ELSE\n- Check for overlap in: companies mentioned, technology type, or incident type`
     : '';
 
   let userPrompt;
@@ -477,7 +474,7 @@ Return ONLY valid JSON (no markdown code blocks, no backticks, just pure JSON st
 
 CRITICAL RESEARCH REQUIREMENTS:
 - Research the LATEST developments about "${override.value}"
-- Find TECHNICAL DETAILS and specific information - don't just write generic content
+- Find TECHNICAL DETAILS and specific information
 - Look for recent news articles, technical blogs, official announcements
 - YOU MUST cite at least 2 credible sources
 - If technical details aren't available, explicitly state "Technical details not yet disclosed"
@@ -491,8 +488,7 @@ CRITICAL REQUIREMENTS:
 - Write your own unique take with additional research and context
 - YOU MUST cite the original article as a source
 - Add at least 1 more credible source for additional context
-- Expand on the topic with technical details and implications
-- Do NOT just summarize - add value with analysis and expert insights`;
+- Expand on the topic with technical details and implications`;
 
   } else {
     userPrompt = `Find the HOTTEST tech story from the past 48 hours that would make people stop scrolling. This needs to be genuinely trending - something people are actively talking about RIGHT NOW.${existingTopicsList}
@@ -522,7 +518,6 @@ AVOID BORING STUFF:
 ❌ Press releases without substance`;
   }
 
-  // Continue with common instructions for all cases
   userPrompt += `
 
 AI REASONING FOR METADATA:
@@ -673,15 +668,15 @@ COMPLETE JSON RESPONSE:
 🚨 CRITICAL: Return ONLY the JSON object. No markdown wrappers. No backticks. No commentary. Just pure JSON starting with { and ending with }.`;
 
   try {
-    console.log('\\n' + '='.repeat(80));
+    console.log('\n' + '='.repeat(80));
     console.log('📤  SYSTEM PROMPT BEING SENT TO PERPLEXITY:');
     console.log('='.repeat(80));
     console.log(system);
-    console.log('\\n' + '='.repeat(80));
+    console.log('\n' + '='.repeat(80));
     console.log('📤  USER PROMPT BEING SENT TO PERPLEXITY:');
     console.log('='.repeat(80));
     console.log(userPrompt);
-    console.log('='.repeat(80) + '\\n');
+    console.log('='.repeat(80) + '\n');
 
     const { data } = await axios.post(
       'https://api.perplexity.ai/chat/completions',
@@ -712,12 +707,12 @@ COMPLETE JSON RESPONSE:
       raw = raw.substring(jsonStart, jsonEnd + 1);
     }
 
-    raw = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/, '').replace(/\\s*```$/g, '').trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '').trim();
 
     const result = JSON.parse(raw);
 
     const wordCount = countWords(result.content || '');
-    const subheadings = (result.content?.match(/^##\\s+.+$/gm) || []).length;
+    const subheadings = (result.content?.match(/^##\s+.+$/gm) || []).length;
 
     if (wordCount < MIN_WORD_COUNT || subheadings < MIN_SUBHEADINGS) {
       if (retryCount < 3) {
@@ -748,31 +743,28 @@ COMPLETE JSON RESPONSE:
 // ============================================================================
 
 async function generateBlog() {
-  console.log('🚀  Starting blog generation...\\n');
+  console.log('🚀  Starting blog generation...\n');
 
   // Check for manual or scheduled override
   let override = null;
 
   if (OVERRIDE_TOPIC) {
     override = { type: 'topic', value: OVERRIDE_TOPIC };
-    console.log(`🎯  Manual topic override: "${OVERRIDE_TOPIC}"\\n`);
+    console.log(`🎯  Manual topic override: "${OVERRIDE_TOPIC}"\n`);
   } else if (OVERRIDE_URL) {
     override = { type: 'url', value: OVERRIDE_URL };
-    console.log(`🎯  Manual URL override: "${OVERRIDE_URL}"\\n`);
+    console.log(`🎯  Manual URL override: "${OVERRIDE_URL}"\n`);
   } else {
     override = await checkScheduledOverride();
-    if (override) {
-      console.log('');
-    }
   }
 
   if (SKIP_SOCIAL) {
-    console.log('⏭️  Social media posting is DISABLED for this run\\n');
+    console.log('⏭️  Social media posting is DISABLED for this run\n');
   }
 
   console.log('📚  Checking existing blog posts...');
   const existing = await fetchExistingSlugs();
-  console.log(`✓ Found ${EXISTING_POSTS_CACHE.length} existing posts to avoid duplicating\\n`);
+  console.log(`✓ Found ${EXISTING_POSTS_CACHE.length} existing posts to avoid duplicating\n`);
 
   const trend = await callPerplexity(0, EXISTING_POSTS_CACHE, override);
   console.log(`📰  Received: "${trend.title}"`);
@@ -780,17 +772,17 @@ async function generateBlog() {
   const validation = validateContent(trend);
 
   if (validation.errors.length > 0) {
-    console.error('\\n❌  VALIDATION FAILED:');
+    console.error('\n❌  VALIDATION FAILED:');
     validation.errors.forEach(err => console.error(`   - ${err}`));
     process.exit(1);
   }
 
   if (validation.warnings.length > 0) {
-    console.warn('\\n⚠️  WARNINGS:');
+    console.warn('\n⚠️  WARNINGS:');
     validation.warnings.forEach(warn => console.warn(`   - ${warn}`));
   }
 
-  console.log(`\\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
+  console.log(`\n✓ Content validated: ${validation.wordCount} words, ${validation.subheadings} sections`);
 
   const featured = trend.featured === true || Number(trend.trendScore || 0) >= FEATURED_THRESHOLD;
   console.log(`✓ Trend score: ${trend.trendScore}/100`);
@@ -819,7 +811,7 @@ async function generateBlog() {
   let rawImageUrl = null;
   let imageCredit = null;
 
-  console.log('\\n🖼️  Fetching blog header image (1200x600)...');
+  console.log('\n🖼️  Fetching blog header image (1200x600)...');
   const imageData = await fetchUnsplashImage(
     trend.keywords || [],
     trend.category,
@@ -842,7 +834,7 @@ async function generateBlog() {
   let content = stripFootnotes(trend.content || '');
 
   // Process inline images from AI-generated {{image:...}} tags
-  console.log('\\n🖼️  Processing inline images...');
+  console.log('\n🖼️  Processing inline images...');
   const { content: processedContent, credits: inlineImageCredits } = await processInlineImages(
     content, 
     trend.keywords || [], 
@@ -851,12 +843,11 @@ async function generateBlog() {
   );
   content = processedContent;
 
-  // Combine all image credits (header + inline images)
+  // Combine all image credits
   const allCredits = [imageCredit, ...inlineImageCredits].filter(Boolean);
   if (allCredits.length > 0) {
     const creditText = allCredits.join(' | ');
-    content += `\\n\\n---\\n\\n*${creditText}*`;
-    console.log(`✓ Added ${allCredits.length} image credit(s): ${creditText}`);
+    content += `\n\n---\n\n*${creditText}*`;
   }
 
   const frontmatter = {
@@ -880,13 +871,13 @@ async function generateBlog() {
     forceQuotes: false
   });
 
-  const finalMd = `---\\n${yamlFront}---\\n\\n${content}`;
+  const finalMd = `---\n${yamlFront}---\n\n${content}`;
 
   await fs.mkdir(POSTS_DIR, { recursive: true });
   const filePath = path.join(POSTS_DIR, `${slug}.md`);
   await fs.writeFile(filePath, finalMd, 'utf8');
 
-  console.log(`\\n✅  Blog post successfully saved!`);
+  console.log(`\n✅  Blog post successfully saved!`);
   console.log(`📁  Location: ${filePath}`);
   console.log(`👤  Author: Marco Grima`);
   console.log(`🏷️   Category: ${frontmatter.category}`);
@@ -910,7 +901,7 @@ async function generateBlog() {
     await sendToZapier(blogData);
     await sendToMake(blogData);
   } else {
-    console.log('\\n⏭️  Skipped social media webhooks (SKIP_SOCIAL=true)');
+    console.log('\n⏭️  Skipped social media webhooks (SKIP_SOCIAL=true)');
   }
 
   return {
@@ -932,12 +923,12 @@ async function generateBlog() {
 
     if (!UNSPLASH_ACCESS_KEY) {
       console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - will use placeholder images');
-      console.warn('   Get free key at: https://unsplash.com/developers\\n');
+      console.warn('   Get free key at: https://unsplash.com/developers\n');
     }
 
     if (!ZAPIER_WEBHOOK_URL && !MAKE_WEBHOOK_URL && !SKIP_SOCIAL) {
       console.warn('⚠️  No webhook URLs configured (ZAPIER_WEBHOOK_URL or MAKE_WEBHOOK_URL)');
-      console.warn('   Social media data will not be sent to any automation platform\\n');
+      console.warn('   Social media data will not be sent to any automation platform\n');
     } else if (!SKIP_SOCIAL) {
       if (ZAPIER_WEBHOOK_URL) {
         console.log('✓ Zapier webhook configured');
@@ -949,13 +940,13 @@ async function generateBlog() {
     }
 
     const result = await generateBlog();
-    console.log('\\n🎉  Generation complete!');
-    console.log(`📝  Blog URL: ${result.url}\\n`);
+    console.log('\n🎉  Generation complete!');
+    console.log(`📝  Blog URL: ${result.url}\n`);
   } catch (error) {
-    console.error('\\n💥  Generation failed:');
+    console.error('\n💥  Generation failed:');
     console.error(error.message);
     if (error.stack) {
-      console.error('\\nStack trace:');
+      console.error('\nStack trace:');
       console.error(error.stack);
     }
     process.exit(1);
