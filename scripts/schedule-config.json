@@ -1,29 +1,29 @@
 {
   "scheduled_overrides": [
     {
-      "date": "2025-10-06",
+      "date": "2025-10-01",
       "topic": "new free Comet ai browser"
     },
     {
-      "date": "2025-10-07",
+      "date": "2025-10-02",
       "skip": true
     },
     {
-      "date": "2025-10-08",
+      "date": "2025-10-03",
       "skip_social": true
     },
     {
-      "date": "2025-10-09",
+      "date": "2025-10-04",
       "url": "https://www.bbc.com/news/coolarticle",
       "skip_social": true
     },
     {
-      "date": "2025-10-10",
+      "date": "2025-10-05",
       "topic": "Microsoft AI security breach",
       "skip_social": false
     },
     {
-      "date": "2025-10-11"
+      "date": "2025-10-06"
     }
   ]
 }
