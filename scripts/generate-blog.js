@@ -466,6 +466,7 @@ CRITICAL FORMATTING RULES:
 - ### **Subheader** = subsections within main sections
 - Tables for comparisons using | markdown syntax
 - Bullet points with - for lists
+- Never Add **bold** in a ## Big Header
 
 INLINE IMAGE TAGS:
 - You CAN and SHOULD add ONE inline image using {{image: search-query, width: 800, height: 450, alt: "description"}} tags
