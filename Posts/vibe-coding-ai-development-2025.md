@@ -6,7 +6,7 @@ author: Marco Grima
 publishedAt: 2025-09-26
 readTime: 8 min read
 category: Artificial Intelligence
-tags: [AI Development, Vibe Coding, Software Engineering, Machine Learnin", Creative Tech, "Programming, Automation]
+tags: [AI Development, Vibe Coding, Software Engineering, Machine Learnin", Creative Tech, Programming, Automation]
 featured: true
 image: /images/blog/vibe-coding-hero.jpg
 metaTitle: Vibe Coding - AI-Powered Development Revolution | Complete Guide 2025
