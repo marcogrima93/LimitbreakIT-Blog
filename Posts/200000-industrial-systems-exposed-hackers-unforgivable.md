@@ -3,7 +3,7 @@ slug: 200000-industrial-systems-exposed-hackers-unforgivable
 title: 200,000 Industrial Systems Exposed to Hackers Right Now
 excerpt: Critical infrastructure systems controlling power grids and water supplies are sitting wide open on the internet with zero protection
 publishedAt: "2025-10-05"
-author: LimitBreakIT Security Insights Team
+author: Marco Grima
 category: Cybersecurity
 tags:
   - Industrial Cybersecurity
