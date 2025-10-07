@@ -3,7 +3,7 @@ slug: beyond-prompts-generative-ai-creative-workflows-2025
 title: From Prompts to Pipelines - How Creative Teams Actually Use Generative AI in 2025
 excerpt: How top design, video, and marketing teams are weaving GenAI (Runway Gen‑4, Adobe Firefly Video, Stable Diffusion 3, Luma, Pika, Canva) into real production workflows—beyond hype.
 publishedAt: 2025-09-25
-author: LimitBreakIT Creative Tech Team
+author: Marco Grima
 category: Innovation & Emerging Tech
 tags: [Generative AI, Runway Gen‑4, Adobe Firefly Video, Creative Workflows, AI in Design, Luma, Pika, Canva]
 image: /images/blog/generative-ai-creative-2025.jpg
