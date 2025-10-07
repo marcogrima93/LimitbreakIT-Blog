@@ -175,15 +175,13 @@ async function fetchExistingSlugs() {
           try {
             const frontmatter = yaml.load(yamlMatch[1]);
             
-            // Extract title and publishedAt date
+            // Extract only title and publishedAt date (skip excerpt)
             const title = frontmatter.title?.trim();
-            const excerpt = frontmatter.excerpt?.trim();
             const publishedAt = frontmatter.publishedAt;
             
             if (title) {
               postsWithDates.push({
                 title,
-                excerpt: excerpt || '',
                 publishedAt: publishedAt || '1970-01-01', // Default to very old date if missing
                 filename: file
               });
@@ -191,14 +189,12 @@ async function fetchExistingSlugs() {
           } catch (yamlError) {
             console.warn(`⚠️  Failed to parse YAML in ${file}: ${yamlError.message}`);
             
-            // Fallback: Try to extract title and excerpt using regex
+            // Fallback: Try to extract title using regex
             const titleMatch = content.match(/^title:\s*(.+)$/m);
-            const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
             
             if (titleMatch) {
               postsWithDates.push({
                 title: titleMatch[1].trim(),
-                excerpt: excerptMatch ? excerptMatch[1].trim() : '',
                 publishedAt: '1970-01-01',
                 filename: file
               });
@@ -226,13 +222,12 @@ async function fetchExistingSlugs() {
       console.log(`   📈  Date range: ${oldestDate} to ${newestDate}`);
     }
 
-    // Extract titles and excerpts from recent posts
+    // Extract ONLY titles from recent posts (no excerpts)
     recentPosts.forEach(post => {
       if (post.title) posts.push(post.title);
-      if (post.excerpt) posts.push(post.excerpt);
     });
 
-    console.log(`✓ Found ${mdFiles.length} local posts, extracted ${posts.length} titles/excerpts from latest 30`);
+    console.log(`✓ Found ${mdFiles.length} local posts, extracted ${posts.length} titles from latest 30`);
     
   } catch (error) {
     console.log(`⚠️  Posts directory not found or inaccessible: ${error.message}`);
@@ -246,7 +241,7 @@ async function fetchExistingSlugs() {
 
   EXISTING_POSTS_CACHE.push(...uniquePosts);
 
-  console.log(`✓ Extracted ${uniquePosts.length} unique post topics for duplicate detection`);
+  console.log(`✓ Extracted ${uniquePosts.length} unique post titles for duplicate detection`);
 
   return slugs;
 }
