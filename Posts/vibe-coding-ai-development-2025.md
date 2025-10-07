@@ -3,7 +3,7 @@ title: "Vibe Coding Revolution: How AI is Transforming Software Development in 2
 slug: "vibe-coding-ai-development-2025"
 excerpt: "Discover how vibe coding is revolutionizing software development, enabling creators to build applications through natural language prompts and AI assistance. Learn the benefits, challenges, and best practices for this game-changing approach."
 content: ""
-author: "LimitBreakIT Team"
+author: Marco Grima
 publishedAt: "2025-09-26"
 readTime: "8 min read"
 category: "Artificial Intelligence"
