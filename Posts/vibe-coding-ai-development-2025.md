@@ -1,5 +1,5 @@
 ---
-title: Vibe Coding Revolution: How AI is Transforming Software Development in 2025
+title: Vibe Coding Revolution - How AI is Transforming Software Development in 2025
 slug: vibe-coding-ai-development-2025
 excerpt: Discover how vibe coding is revolutionizing software development, enabling creators to build applications through natural language prompts and AI assistance. Learn the benefits, challenges, and best practices for this game-changing approach.
 author: Marco Grima
@@ -9,7 +9,7 @@ category: Artificial Intelligence
 tags: [AI Development, Vibe Coding, Software Engineering, Machine Learnin", Creative Tech, "Programming, Automation]
 featured: true
 image: /images/blog/vibe-coding-hero.jpg
-metaTitle: Vibe Coding: AI-Powered Development Revolution | Complete Guide 2025
+metaTitle: Vibe Coding - AI-Powered Development Revolution | Complete Guide 2025
 metaDescription: Learn about vibe coding - the revolutionary AI-driven development approach transforming how teams build software. Discover tools, benefits, challenges, and implementation strategies.
 keywords: [vibe coding, AI development, artificial intelligence programming, code generation, automated coding, AI tools, software development trends, creative tech workflows]
 ---
