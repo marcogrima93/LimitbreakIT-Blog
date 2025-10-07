@@ -3,7 +3,7 @@ slug: openai-sora-2-ai-video-generator-star-in-scenes
 title: OpenAI Sora 2 Lets You Star in AI Videos You Create
 excerpt: OpenAI just dropped Sora 2 and it's wild - you can now create AI videos and literally star in them yourself. This changes everything for content creation.
 publishedAt: "2025-10-04"
-author: LimitBreakIT Innovation Team
+author: Marco Grima
 category: Artificial Intelligence
 tags:
   - OpenAI
