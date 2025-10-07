@@ -3,7 +3,7 @@ slug: druva-partnership-malta-backup-revolution-2025
 title: GAME CHANGER - LimitBreakIT x Druva Partnership Brings Enterprise Backup to Malta SMBs
 excerpt: Malta SMBs can now access Fortune 500-level data protection at affordable prices. 40% cost reduction, 15-minute deployment, and bulletproof ransomware protection through our official Druva partnership.
 publishedAt: 2025-09-18
-author: LimitBreakIT Partnership Team
+author: Marco Grima
 category: Data Protection
 tags: [Druva Partnership, Malta Backup Solutions, Data Protection, Business Continuity, Cloud Backup, Ransomware Protection, Enterprise Backup]
 image: /images/blog/druva-partnership-malta-backup.jpg
