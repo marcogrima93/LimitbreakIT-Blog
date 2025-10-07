@@ -2,8 +2,8 @@
 slug: xbox-game-pass-price-hikes-crash-site-millions-cancel
 title: Xbox Game Pass Price Hikes Crash Site as Millions Cancel
 excerpt: Microsoft's latest Xbox Game Pass price increases triggered such massive cancellations that the membership site literally crashed under the load.
-publishedAt: "2025-10-03"
-author: LimitBreakIT Tech Insights Team
+publishedAt: 2025-10-03
+author: Marco Grima
 category: Business Technology
 tags:
   - Xbox Game Pass
