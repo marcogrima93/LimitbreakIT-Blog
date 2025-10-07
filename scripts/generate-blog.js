@@ -155,78 +155,93 @@ async function fetchExistingSlugs() {
 
   try {
     const files = await fs.readdir(POSTS_DIR);
-    for (const file of files.filter(f => f.endsWith('.md'))) {
+    const mdFiles = files.filter(f => f.endsWith('.md'));
+    
+    console.log(`📂  Found ${mdFiles.length} markdown files in ${POSTS_DIR}`);
+
+    // Array to store posts with their publication dates
+    const postsWithDates = [];
+
+    for (const file of mdFiles) {
       const slug = file.replace('.md', '');
       slugs.add(slug);
 
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
-        const titleMatch = content.match(/^title:\s*(.+)$/m);
-        if (titleMatch) {
-          posts.push(titleMatch[1].trim());
-        }
-        const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
-        if (excerptMatch) {
-          posts.push(excerptMatch[1].trim());
+        
+        // Extract YAML frontmatter
+        const yamlMatch = content.match(/^---\s*\n(.*?)\n---/s);
+        if (yamlMatch) {
+          try {
+            const frontmatter = yaml.load(yamlMatch[1]);
+            
+            // Extract title and publishedAt date
+            const title = frontmatter.title?.trim();
+            const excerpt = frontmatter.excerpt?.trim();
+            const publishedAt = frontmatter.publishedAt;
+            
+            if (title) {
+              postsWithDates.push({
+                title,
+                excerpt: excerpt || '',
+                publishedAt: publishedAt || '1970-01-01', // Default to very old date if missing
+                filename: file
+              });
+            }
+          } catch (yamlError) {
+            console.warn(`⚠️  Failed to parse YAML in ${file}: ${yamlError.message}`);
+            
+            // Fallback: Try to extract title and excerpt using regex
+            const titleMatch = content.match(/^title:\s*(.+)$/m);
+            const excerptMatch = content.match(/^excerpt:\s*(.+)$/m);
+            
+            if (titleMatch) {
+              postsWithDates.push({
+                title: titleMatch[1].trim(),
+                excerpt: excerptMatch ? excerptMatch[1].trim() : '',
+                publishedAt: '1970-01-01',
+                filename: file
+              });
+            }
+          }
+        } else {
+          console.warn(`⚠️  No YAML frontmatter found in ${file}`);
         }
       } catch (err) {
         console.warn(`⚠️  Failed to read ${file}: ${err.message}`);
       }
     }
-    console.log(`✓ Found ${files.length} local posts`);
-  } catch (_) {
-    console.log('⚠️  Posts directory not found - checking website only');
-  }
 
-  try {
-    const { data: html } = await axios.get(BLOG_BASE_URL, { timeout: 15000 });
-
-    const slugMatches = html.match(/\/insights-news\/([a-z0-9-]+)/g) || [];
-    slugMatches.forEach(match => {
-      const slug = match.split('/').pop();
-      if (slug && slug.length > 5) slugs.add(slug);
-    });
-
-    const titlePatterns = [
-      /<h[1-4][^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/h[1-4]>/gi,
-      /<h[1-4][^>]*>([^<]{20,120})<\/h[1-4]>/g,
-      /<a[^>]*href="\/insights-news\/[^"]*"[^>]*>([^<]{20,120})<\/a>/g,
-      /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/span>/gi,
-      /<div[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/div>/gi
-    ];
-
-    titlePatterns.forEach(pattern => {
-      const matches = html.matchAll(pattern);
-      for (const match of matches) {
-        const title = match[1].replace(/\s+/g, ' ').trim();
-        if (title.length > 15 && title.length < 150) {
-          posts.push(title);
-        }
-      }
-    });
-
-    const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/s);
-    if (jsonLdMatch) {
-      try {
-        const jsonData = JSON.parse(jsonLdMatch[1]);
-        if (jsonData.headline) posts.push(jsonData.headline);
-        if (jsonData.name) posts.push(jsonData.name);
-        if (Array.isArray(jsonData)) {
-          jsonData.forEach(item => {
-            if (item.headline) posts.push(item.headline);
-            if (item.name) posts.push(item.name);
-          });
-        }
-      } catch (_) {}
+    // Sort posts by publishedAt date (newest first)
+    postsWithDates.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    
+    // Take only the 30 most recent posts
+    const recentPosts = postsWithDates.slice(0, 30);
+    
+    console.log(`📅  Sorted ${postsWithDates.length} posts by date, using latest 30 for duplicate detection`);
+    
+    if (recentPosts.length > 0) {
+      const oldestDate = recentPosts[recentPosts.length - 1].publishedAt;
+      const newestDate = recentPosts[0].publishedAt;
+      console.log(`   📈  Date range: ${oldestDate} to ${newestDate}`);
     }
 
-    console.log(`✓ Found ${slugMatches.length} remote slugs`);
-  } catch (err) {
-    console.warn(`⚠️  Could not fetch website: ${err.message}`);
+    // Extract titles and excerpts from recent posts
+    recentPosts.forEach(post => {
+      if (post.title) posts.push(post.title);
+      if (post.excerpt) posts.push(post.excerpt);
+    });
+
+    console.log(`✓ Found ${mdFiles.length} local posts, extracted ${posts.length} titles/excerpts from latest 30`);
+    
+  } catch (error) {
+    console.log(`⚠️  Posts directory not found or inaccessible: ${error.message}`);
+    return new Set(); // Return empty set if directory doesn't exist
   }
 
+  // Clean and deduplicate the posts
   const uniquePosts = [...new Set(posts)]
-    .filter(p => p.length > 15 && p.length < 150)
+    .filter(p => p && p.length > 15 && p.length < 150)
     .map(p => p.replace(/\s+/g, ' ').trim());
 
   EXISTING_POSTS_CACHE.push(...uniquePosts);
