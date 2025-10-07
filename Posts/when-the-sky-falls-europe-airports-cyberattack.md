@@ -3,7 +3,7 @@ slug: when-the-sky-falls-europe-airports-cyberattack
 title: When the Sky Falls - How Hackers Grounded Europe's Biggest Airports  
 excerpt: A single cyberattack brought Heathrow, Brussels, and Berlin to their knees. Thousands stranded, flights cancelled, and chaos at check-in desks. Here's what happened and why every business should be worried.
 publishedAt: 2025-09-23
-author: LimitBreakIT Security Insights Team
+author: Marco Grima
 category: Cybersecurity
 tags: [Airport Hack, Cyberattack 2025, Critical Infrastructure, Aviation Security, Business Security]
 image: /images/blog/europe-airports-cyberattack.jpg
