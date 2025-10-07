@@ -3,7 +3,7 @@ slug: 40-billion-data-center-deal-ai-infrastructure-race
 title: $40 Billion Data Center Deal Shakes AI Infrastructure Race
 excerpt: Global Infrastructure Partners closes in on massive Aligned Data Centers acquisition as AI demand explodes data center valuations to record highs
 publishedAt: "2025-10-03"
-author: LimitBreakIT Tech Insights Team
+author: Marco Grima
 category: Cloud & Infrastructure
 tags:
   - DataCenter
