@@ -9,13 +9,14 @@ const yaml = require('js-yaml');
 // ============================================================================
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
+const POLLINATIONS_TOKEN = process.env.POLLINATIONS_TOKEN || '';
 const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || '';
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || '';
 const OVERRIDE_TOPIC = process.env.OVERRIDE_TOPIC || '';
 const OVERRIDE_URL = process.env.OVERRIDE_URL || '';
 const SKIP_SOCIAL = process.env.SKIP_SOCIAL === 'true';
 const POSTS_DIR = 'Posts';
+const IMAGES_DIR = 'public/images/blog';
 const BLOG_BASE_URL = 'https://www.limitbreakit.com/insights-news';
 const FEATURED_THRESHOLD = 70;
 const MIN_WORD_COUNT = 500;
@@ -46,14 +47,12 @@ async function checkScheduledOverride() {
   if (todaySchedule) {
     console.log(`📅  Found scheduled override for ${today}:`);
     
-    // Check for complete day skip
     if (todaySchedule.skip === true) {
       console.log('   Skip: true - Exiting blog generation');
       console.log('\n⏭️  Blog generation skipped for today per schedule configuration');
       process.exit(0);
     }
     
-    // Create override object with defaults
     let override = null;
     
     if (todaySchedule.topic) {
@@ -64,24 +63,20 @@ async function checkScheduledOverride() {
       override = { type: 'url', value: todaySchedule.url };
     }
     
-    // Check for social media skip (defaults to false if not specified)
     const skipSocial = todaySchedule.skip_social === true;
     if (skipSocial) {
       console.log('   Skip Social: true');
     }
     
-    // If we have an override, add the skipSocial flag
     if (override) {
       override.skipSocial = skipSocial;
       return override;
     }
     
-    // If no topic/url but skip_social is set, return social skip indicator
     if (skipSocial) {
       return { type: 'skip_social_only' };
     }
     
-    // If date entry exists but no specific actions, continue with defaults
     console.log('   No specific overrides found, continuing with defaults');
   }
   
@@ -159,7 +154,6 @@ async function fetchExistingSlugs() {
     
     console.log(`📂  Found ${mdFiles.length} markdown files in ${POSTS_DIR}`);
 
-    // Array to store posts with their publication dates
     const postsWithDates = [];
 
     for (const file of mdFiles) {
@@ -169,27 +163,24 @@ async function fetchExistingSlugs() {
       try {
         const content = await fs.readFile(path.join(POSTS_DIR, file), 'utf8');
         
-        // Extract YAML frontmatter
         const yamlMatch = content.match(/^---\s*\n(.*?)\n---/s);
         if (yamlMatch) {
           try {
             const frontmatter = yaml.load(yamlMatch[1]);
             
-            // Extract only title and publishedAt date (skip excerpt)
             const title = frontmatter.title?.trim();
             const publishedAt = frontmatter.publishedAt;
             
             if (title) {
               postsWithDates.push({
                 title,
-                publishedAt: publishedAt || '1970-01-01', // Default to very old date if missing
+                publishedAt: publishedAt || '1970-01-01',
                 filename: file
               });
             }
           } catch (yamlError) {
             console.warn(`⚠️  Failed to parse YAML in ${file}: ${yamlError.message}`);
             
-            // Fallback: Try to extract title using regex
             const titleMatch = content.match(/^title:\s*(.+)$/m);
             
             if (titleMatch) {
@@ -208,10 +199,8 @@ async function fetchExistingSlugs() {
       }
     }
 
-    // Sort posts by publishedAt date (newest first)
     postsWithDates.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
     
-    // Take only the 30 most recent posts
     const recentPosts = postsWithDates.slice(0, 30);
     
     console.log(`📅  Sorted ${postsWithDates.length} posts by date, using latest 30 for duplicate detection`);
@@ -222,7 +211,6 @@ async function fetchExistingSlugs() {
       console.log(`   📈  Date range: ${oldestDate} to ${newestDate}`);
     }
 
-    // Extract ONLY titles from recent posts (no excerpts)
     recentPosts.forEach(post => {
       if (post.title) posts.push(post.title);
     });
@@ -231,10 +219,9 @@ async function fetchExistingSlugs() {
     
   } catch (error) {
     console.log(`⚠️  Posts directory not found or inaccessible: ${error.message}`);
-    return new Set(); // Return empty set if directory doesn't exist
+    return new Set();
   }
 
-  // Clean and deduplicate the posts
   const uniquePosts = [...new Set(posts)]
     .filter(p => p && p.length > 15 && p.length < 150)
     .map(p => p.replace(/\s+/g, ' ').trim());
@@ -247,88 +234,65 @@ async function fetchExistingSlugs() {
 }
 
 // ============================================================================
-// IMAGE FETCHING
+// AI IMAGE GENERATION
 // ============================================================================
 
-async function fetchUnsplashImage(keywords, category, title, size = 'header', customQuery = null) {
-  if (!UNSPLASH_ACCESS_KEY) {
-    console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - cannot fetch images');
-    return null;
+async function fetchPollinationsImage(prompt, width, height) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  let imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
+  
+  // Add token if available
+  if (POLLINATIONS_TOKEN) {
+    imageUrl += `&token=${POLLINATIONS_TOKEN}`;
   }
-
-  try {
-    let searchTerms;
-    let resultIndex = 0;
-    
-    if (customQuery) {
-      searchTerms = customQuery;
-      console.log(`🖼️  Using AI search query: "${searchTerms}" (${size})`);
-    } else if (size === 'inline') {
-      searchTerms = keywords.slice(1, 4).join(' ') || `${category} technology`;
-      resultIndex = 1;
-      console.log(`🖼️  Searching Unsplash (fallback): "${searchTerms}" (${size})`);
-    } else {
-      searchTerms = [category.toLowerCase(), ...keywords.slice(0, 2)].join(' ');
-      console.log(`🖼️  Searching Unsplash: "${searchTerms}" (${size})`);
-    }
-
-    const { data } = await axios.get('https://api.unsplash.com/search/photos', {
-      params: {
-        query: searchTerms,
-        per_page: 5,
-        orientation: 'landscape',
-        content_filter: 'high'
-      },
-      headers: {
-        'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}`
-      },
-      timeout: 10000
-    });
-
-    if (data.results && data.results.length > 0) {
-      const photoIndex = Math.min(resultIndex, data.results.length - 1);
-      const photo = data.results[photoIndex];
-
-      let width, height;
-      if (size === 'header') {
-        width = 1200;
-        height = 600;
-      } else {
-        width = 800;
-        height = 450;
-      }
-
-      const optimizedUrl = `${photo.urls.raw}&w=${width}&h=${height}&fit=crop&q=80`;
-
-      console.log(`✓ Found ${size} image by ${photo.user.name} (${width}x${height}) [result #${photoIndex + 1}]`);
-
-      return {
-        url: optimizedUrl,
-        rawUrl: photo.urls.raw,
-        alt: photo.alt_description || `${title} - ${category} technology`,
-        credit: `Photo by ${photo.user.name} on Unsplash`,
-        downloadLocation: photo.links.download_location,
-        width,
-        height
-      };
-    }
-
-    console.warn('⚠️  No Unsplash images found for query');
-    return null;
-  } catch (error) {
-    console.warn(`⚠️  Unsplash API error: ${error.message}`);
-    return null;
-  }
+  
+  console.log(`   🌐 Generated Pollinations.ai URL`);
+  
+  return {
+    url: imageUrl,
+    alt: prompt,
+    credit: 'AI Generated Image',
+    width,
+    height,
+    source: 'pollinations'
+  };
 }
 
-async function triggerUnsplashDownload(downloadLocation) {
-  if (!downloadLocation || !UNSPLASH_ACCESS_KEY) return;
-
-  try {
-    await axios.get(downloadLocation, {
-      headers: { 'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}` }
-    });
-  } catch (_) {}
+async function fetchAIImage(keywords, category, title, size = 'header', customQuery = null) {
+  // Build intelligent prompt
+  let basePrompt;
+  
+  if (customQuery) {
+    basePrompt = customQuery;
+  } else if (size === 'inline') {
+    basePrompt = keywords.slice(1, 4).join(' ') || `${category} technology`;
+  } else {
+    basePrompt = `${category} technology, ${keywords.slice(0, 2).join(', ')}`;
+  }
+  
+  // Add quality modifiers for better results
+  const prompt = `${basePrompt}, professional, modern, high quality, photorealistic, detailed`;
+  
+  const width = size === 'header' ? 1200 : 800;
+  const height = size === 'header' ? 600 : 450;
+  
+  console.log(`🎨 Generating AI image: "${basePrompt}" (${width}x${height})`);
+  
+  const result = await fetchPollinationsImage(prompt, width, height);
+  
+  if (!result) {
+    console.warn('⚠️  Image generation failed, using placeholder');
+    return {
+      url: `/images/blog/placeholder-${size}.jpg`,
+      alt: title,
+      credit: 'Placeholder Image',
+      width,
+      height,
+      source: 'placeholder'
+    };
+  }
+  
+  return result;
 }
 
 async function processInlineImages(content, keywords, category, title) {
@@ -350,7 +314,7 @@ async function processInlineImages(content, keywords, category, title) {
     
     console.log(`🖼️  AI requested image for: "${aiSearchQuery.trim()}"`);
 
-    const imageData = await fetchUnsplashImage(
+    const imageData = await fetchAIImage(
       keywords,
       category,
       title,
@@ -359,8 +323,6 @@ async function processInlineImages(content, keywords, category, title) {
     );
 
     if (imageData) {
-      await triggerUnsplashDownload(imageData.downloadLocation);
-      
       const replacement = `{{image: ${imageData.url}, width: ${width}, height: ${height}, alt: "${alt}"}}`;
       updatedContent = updatedContent.replace(fullMatch, replacement);
       
@@ -368,7 +330,7 @@ async function processInlineImages(content, keywords, category, title) {
       
       console.log(`✓ Replaced with: ${imageData.url.substring(0, 70)}...`);
     } else {
-      console.warn(`⚠️  Could not fetch inline image for "${aiSearchQuery.trim()}", removing tag`);
+      console.warn(`⚠️  Could not generate inline image for "${aiSearchQuery.trim()}", removing tag`);
       updatedContent = updatedContent.replace(fullMatch, '');
     }
   }
@@ -393,7 +355,6 @@ async function sendToWebhook(webhookUrl, webhookName, blogData, skipSocial = fal
   console.log(`\n📤  Sending blog data to ${webhookName} for social media processing...`);
 
   try {
-    // Format hashtags with # symbol
     const formattedHashtags = (blogData.socialMediaHashtags || [])
       .map(tag => tag.startsWith('#') ? tag : `#${tag}`)
       .join(' ');
@@ -650,7 +611,6 @@ For BUSINESS/FUNDING stories:
 Start with "Bottom line:" or "Here's what matters:"
 *Put your key takeaway in italics as a full sentence.*`;
 
-  // Only add social media instructions if not skipping social generation
   if (!skipSocialGeneration) {
     userPrompt += `
 
@@ -800,9 +760,8 @@ COMPLETE JSON RESPONSE:
 async function generateBlog() {
   console.log('🚀  Starting blog generation...\n');
 
-  // Check for manual or scheduled override
   let override = null;
-  let skipSocial = SKIP_SOCIAL; // Start with env variable
+  let skipSocial = SKIP_SOCIAL;
 
   if (OVERRIDE_TOPIC) {
     override = { type: 'topic', value: OVERRIDE_TOPIC };
@@ -813,10 +772,9 @@ async function generateBlog() {
   } else {
     override = await checkScheduledOverride();
     if (override) {
-      // Check if the scheduled override wants to skip social
       if (override.type === 'skip_social_only') {
         skipSocial = true;
-        override = null; // Reset override since it's just a social skip
+        override = null;
       } else if (override.skipSocial) {
         skipSocial = true;
       }
@@ -876,8 +834,8 @@ async function generateBlog() {
   let rawImageUrl = null;
   let imageCredit = null;
 
-  console.log('\n🖼️  Fetching blog header image (1200x600)...');
-  const imageData = await fetchUnsplashImage(
+  console.log('\n🖼️  Generating blog header image (1200x600)...');
+  const imageData = await fetchAIImage(
     trend.keywords || [],
     trend.category,
     trend.title,
@@ -886,19 +844,17 @@ async function generateBlog() {
 
   if (imageData) {
     imageUrl = imageData.url;
-    rawImageUrl = imageData.rawUrl;
+    rawImageUrl = imageData.url;
     imageCredit = imageData.credit;
-    await triggerUnsplashDownload(imageData.downloadLocation);
     console.log(`✓ Header image: ${imageUrl.substring(0, 80)}...`);
   } else {
-    console.warn('⚠️  Could not fetch header image from Unsplash');
+    console.warn('⚠️  Could not generate header image');
     imageUrl = `/images/blog/${slug}.jpg`;
     rawImageUrl = imageUrl;
   }
 
   let content = stripFootnotes(trend.content || '');
 
-  // Process inline images from AI-generated {{image:...}} tags
   console.log('\n🖼️  Processing inline images...');
   const { content: processedContent, credits: inlineImageCredits } = await processInlineImages(
     content, 
@@ -908,7 +864,6 @@ async function generateBlog() {
   );
   content = processedContent;
 
-  // Combine all image credits
   const allCredits = [imageCredit, ...inlineImageCredits].filter(Boolean);
   if (allCredits.length > 0) {
     const creditText = allCredits.join(' | ');
@@ -950,7 +905,6 @@ async function generateBlog() {
   console.log(`🖼️  Header image: ${imageUrl.substring(0, 80)}...`);
   console.log(`${featured ? '⭐  Featured post' : '📌  Standard post'}`);
 
-  // Send to webhooks for social media processing (unless skipped)
   if (!skipSocial) {
     const blogData = {
       title: trend.title,
@@ -986,10 +940,15 @@ async function generateBlog() {
       throw new Error('PERPLEXITY_API_KEY environment variable is not set');
     }
 
-    if (!UNSPLASH_ACCESS_KEY) {
-      console.warn('⚠️  UNSPLASH_ACCESS_KEY not set - will use placeholder images');
-      console.warn('   Get free key at: https://unsplash.com/developers\n');
+    console.log('🎨 AI Image Generation Configuration:');
+    console.log('   Using: Pollinations.ai (free, unlimited)');
+    
+    if (POLLINATIONS_TOKEN) {
+      console.log('   ✓ POLLINATIONS_TOKEN configured');
+    } else {
+      console.warn('   ⚠️  POLLINATIONS_TOKEN not set - using default (may have rate limits)');
     }
+    console.log('');
 
     if (!ZAPIER_WEBHOOK_URL && !MAKE_WEBHOOK_URL && !SKIP_SOCIAL) {
       console.warn('⚠️  No webhook URLs configured (ZAPIER_WEBHOOK_URL or MAKE_WEBHOOK_URL)');
