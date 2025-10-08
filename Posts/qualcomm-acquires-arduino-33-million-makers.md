@@ -23,7 +23,7 @@ keywords:
   - qualcomm-edge-computing-strategy
 ---
 
-Qualcomm just dropped **$XXXX** to buy Arduino. Not a partnership. Not an investment. A full acquisition of the **open-source hardware platform** that taught **33 million people** how to build their first robot, smart home device, or LED blinker.
+Qualcomm just dropped $$$ to buy Arduino. Not a partnership. Not an investment. A full acquisition of the open-source hardware platform that taught 33 million people how to build their first robot, smart home device, or LED blinker. However, the exact amount spent on the acquisition has not been disclosed.
 
 This is like Microsoft buying Linux or Apple acquiring Android. Arduino isn't just a company - it's a **movement**. Every engineering student, hobbyist maker, and IoT developer has an Arduino board sitting in a drawer somewhere. Now Qualcomm owns all of it.
 
