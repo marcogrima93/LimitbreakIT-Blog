@@ -45,7 +45,6 @@ jobs:
           POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-          ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OVERRIDE_TOPIC: ${{ inputs.override_topic }}
