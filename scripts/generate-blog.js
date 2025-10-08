@@ -240,7 +240,7 @@ async function fetchExistingSlugs() {
 async function fetchPollinationsImage(prompt, width, height) {
   try {
     const encodedPrompt = encodeURIComponent(prompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&model=flux`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&token=Mm5Z3FtcCdwAieqt`;
     
     console.log(`   🌐 Trying Pollinations.ai...`);
     
