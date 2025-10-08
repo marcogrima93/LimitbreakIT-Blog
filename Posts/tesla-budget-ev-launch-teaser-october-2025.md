@@ -11,7 +11,7 @@ tags:
   - EV Tax Credit
   - Model Y
   - Mass Market Tesla
-image: https://image.pollinations.ai/prompt/Innovation%20%26%20Emerging%20Tech%20technology%2C%20Tesla%20budget%20EV%2C%20affordable%20electric%20vehicle%2C%20professional%2C%20modern%2C%20high%20quality%2C%20photorealistic%2C%20detailed?width=1200&height=600&nologo=true&model=flux
+image: https://image.pollinations.ai/prompt/Innovation%20%26%20Emerging%20Tech%20technology%2C%20Tesla%20budget%20EV%2C%20affordable%20electric%20vehicle%2C%20professional%2C%20modern%2C%20high%20quality%2C%20photorealistic%2C%20detailed?width=1200&height=600&nologo=true
 featured: true
 metaTitle: Tesla Budget EV Launch Teaser Drops Today - Mass Market Game Changer
 metaDescription: Tesla just posted a cryptic teaser for an affordable EV launching today. With the $7,500 tax credit expired, this budget Model Y could change everything for the mass market.
