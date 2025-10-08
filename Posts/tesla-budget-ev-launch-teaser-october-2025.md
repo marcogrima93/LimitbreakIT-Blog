@@ -31,7 +31,7 @@ The timing couldn't be more perfect. Or more desperate.
 
 Tesla has been promising an affordable electric vehicle for years, and today might finally be the day they deliver. The teaser comes as the company faces mounting pressure to expand beyond its premium Model S and Model Y lineup into the mass market.
 
-{{image: https://image.pollinations.ai/prompt/Tesla%20affordable%20electric%20vehicle%20assembly%20line%20production%2C%20professional%2C%20modern%2C%20high%20quality%2C%20photorealistic%2C%20detailed?width=800&height=450&nologo=true, width: 800, height: 450, alt: "Tesla budget EV production facility"}}
+{{image: https://image.pollinations.ai/prompt/Tesla%20affordable%20electric%20vehicle%20assembly%20line%20production%2C%20professional%2C%20modern%2C%20high%20quality%2C%20photorealistic%2C%20detailed?width=800&height=450&nologo=true&model=flux, width: 800, height: 450, alt: "Tesla budget EV production facility"}}
 
 The vehicle in question is reportedly a **stripped-down version of the Model Y** designed to be roughly **20% cheaper to produce** than the current refreshed model. Tesla has already confirmed they've completed *"first builds"* of this budget-friendly EV and plans to begin sales in **Q4 2025**.
 
