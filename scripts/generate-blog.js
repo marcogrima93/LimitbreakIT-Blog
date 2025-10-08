@@ -9,7 +9,7 @@ const yaml = require('js-yaml');
 // ============================================================================
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
+const POLLINATIONS_TOKEN = process.env.POLLINATIONS_TOKEN || '';
 const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || '';
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || '';
 const OVERRIDE_TOPIC = process.env.OVERRIDE_TOPIC || '';
@@ -238,82 +238,24 @@ async function fetchExistingSlugs() {
 // ============================================================================
 
 async function fetchPollinationsImage(prompt, width, height) {
-  try {
-    const encodedPrompt = encodeURIComponent(prompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&token=Mm5Z3FtcCdwAieqt`;
-    
-    console.log(`   🌐 Trying Pollinations.ai...`);
-    
-    const response = await axios.head(imageUrl, { timeout: 15000 });
-    
-    if (response.status === 200) {
-      console.log(`   ✓ Pollinations.ai succeeded`);
-      return {
-        url: imageUrl,
-        alt: prompt,
-        credit: 'AI Generated Image',
-        width,
-        height,
-        source: 'pollinations'
-      };
-    }
-  } catch (error) {
-    console.log(`   ✗ Pollinations.ai failed: ${error.message}`);
-    return null;
+  const encodedPrompt = encodeURIComponent(prompt);
+  let imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
+  
+  // Add token if available
+  if (POLLINATIONS_TOKEN) {
+    imageUrl += `&token=${POLLINATIONS_TOKEN}`;
   }
-}
-
-async function fetchHuggingFaceImage(prompt, width, height, filename) {
-  if (!HUGGINGFACE_API_KEY) {
-    console.log(`   ⏭️  Skipping Hugging Face (no API key)`);
-    return null;
-  }
-
-  try {
-    console.log(`   🤗 Trying Hugging Face (FLUX.1-schnell)...`);
-    
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-      {
-        inputs: prompt,
-        parameters: {
-          width: width,
-          height: height,
-          num_inference_steps: 4
-        }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        responseType: 'arraybuffer',
-        timeout: 40000
-      }
-    );
-
-    await fs.mkdir(IMAGES_DIR, { recursive: true });
-    const filepath = path.join(IMAGES_DIR, filename);
-    await fs.writeFile(filepath, response.data);
-    
-    console.log(`   ✓ Hugging Face succeeded - saved as ${filename}`);
-    
-    return {
-      url: `/images/blog/${filename}`,
-      alt: prompt,
-      credit: 'AI Generated Image (FLUX.1)',
-      width,
-      height,
-      source: 'huggingface'
-    };
-  } catch (error) {
-    if (error.response?.status === 503) {
-      console.log(`   ✗ Hugging Face model loading (try again in 20s)`);
-    } else {
-      console.log(`   ✗ Hugging Face failed: ${error.message}`);
-    }
-    return null;
-  }
+  
+  console.log(`   🌐 Generated Pollinations.ai URL`);
+  
+  return {
+    url: imageUrl,
+    alt: prompt,
+    credit: 'AI Generated Image',
+    width,
+    height,
+    source: 'pollinations'
+  };
 }
 
 async function fetchAIImage(keywords, category, title, size = 'header', customQuery = null) {
@@ -336,21 +278,10 @@ async function fetchAIImage(keywords, category, title, size = 'header', customQu
   
   console.log(`🎨 Generating AI image: "${basePrompt}" (${width}x${height})`);
   
-  // Generate filename for local storage
-  const timestamp = Date.now();
-  const filename = `${slugify(basePrompt)}-${timestamp}.jpg`;
+  const result = await fetchPollinationsImage(prompt, width, height);
   
-  // Try Pollinations first (free, unlimited, no API key)
-  let result = await fetchPollinationsImage(prompt, width, height);
-  
-  // Fallback to Hugging Face if Pollinations fails
   if (!result) {
-    result = await fetchHuggingFaceImage(prompt, width, height, filename);
-  }
-  
-  // If both fail, use placeholder
-  if (!result) {
-    console.warn('⚠️  All AI image services failed, using placeholder');
+    console.warn('⚠️  Image generation failed, using placeholder');
     return {
       url: `/images/blog/placeholder-${size}.jpg`,
       alt: title,
@@ -1010,13 +941,12 @@ async function generateBlog() {
     }
 
     console.log('🎨 AI Image Generation Configuration:');
-    console.log('   Primary: Pollinations.ai (free, unlimited, no key required)');
+    console.log('   Using: Pollinations.ai (free, unlimited)');
     
-    if (HUGGINGFACE_API_KEY) {
-      console.log('   Fallback: Hugging Face FLUX.1 (1000 req/month free)');
+    if (POLLINATIONS_TOKEN) {
+      console.log('   ✓ POLLINATIONS_TOKEN configured');
     } else {
-      console.warn('   ⚠️  HUGGINGFACE_API_KEY not set - only Pollinations.ai will be used');
-      console.warn('   Get free key at: https://huggingface.co/settings/tokens');
+      console.warn('   ⚠️  POLLINATIONS_TOKEN not set - using default (may have rate limits)');
     }
     console.log('');
 
