@@ -10,7 +10,6 @@ const yaml = require('js-yaml');
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const POLLINATIONS_TOKEN = process.env.POLLINATIONS_TOKEN || '';
-const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || '';
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || '';
 const OVERRIDE_TOPIC = process.env.OVERRIDE_TOPIC || '';
 const OVERRIDE_URL = process.env.OVERRIDE_URL || '';
@@ -237,6 +236,14 @@ async function fetchExistingSlugs() {
 // AI IMAGE GENERATION
 // ============================================================================
 
+function stripDimensionsFromUrl(url) {
+  // Remove width and height parameters from URL but keep all other params
+  const urlObj = new URL(url);
+  urlObj.searchParams.delete('width');
+  urlObj.searchParams.delete('height');
+  return urlObj.toString();
+}
+
 async function fetchPollinationsImage(prompt, width, height) {
   const encodedPrompt = encodeURIComponent(prompt);
   let imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
@@ -339,20 +346,20 @@ async function processInlineImages(content, keywords, category, title) {
 }
 
 // ============================================================================
-// ZAPIER & MAKE.COM WEBHOOKS
+// MAKE.COM WEBHOOK
 // ============================================================================
 
-async function sendToWebhook(webhookUrl, webhookName, blogData, skipSocial = false) {
-  if (!webhookUrl) {
+async function sendToMake(blogData, skipSocial = false) {
+  if (!MAKE_WEBHOOK_URL) {
     return;
   }
 
   if (SKIP_SOCIAL || skipSocial) {
-    console.log(`⏭️  Skipping ${webhookName} (SKIP_SOCIAL=true or scheduled skip_social)`);
+    console.log(`⏭️  Skipping Make.com (SKIP_SOCIAL=true or scheduled skip_social)`);
     return;
   }
 
-  console.log(`\n📤  Sending blog data to ${webhookName} for social media processing...`);
+  console.log(`\n📤  Sending blog data to Make.com for social media processing...`);
 
   try {
     const formattedHashtags = (blogData.socialMediaHashtags || [])
@@ -377,7 +384,7 @@ async function sendToWebhook(webhookUrl, webhookName, blogData, skipSocial = fal
     console.log(`   Social Hook: ${payload.social_media_hook}`);
     console.log(`   Hashtags: ${payload.social_media_hashtags}`);
 
-    const response = await axios.post(webhookUrl, payload, {
+    const response = await axios.post(MAKE_WEBHOOK_URL, payload, {
       headers: {
         'Content-Type': 'application/json'
       },
@@ -385,27 +392,19 @@ async function sendToWebhook(webhookUrl, webhookName, blogData, skipSocial = fal
     });
 
     if (response.status === 200) {
-      console.log(`✅  Successfully sent to ${webhookName} webhook`);
+      console.log(`✅  Successfully sent to Make.com webhook`);
       console.log(`   Response: ${response.data?.status || 'OK'}`);
     }
   } catch (error) {
-    console.error(`❌  Failed to send to ${webhookName}:`);
+    console.error(`❌  Failed to send to Make.com:`);
     if (error.response) {
       console.error(`   Status: ${error.response.status}`);
       console.error(`   Message: ${error.response.data?.message || error.message}`);
     } else {
       console.error(`   ${error.message}`);
     }
-    console.warn(`⚠️  Continuing despite ${webhookName} error...`);
+    console.warn(`⚠️  Continuing despite Make.com error...`);
   }
-}
-
-async function sendToZapier(blogData, skipSocial = false) {
-  await sendToWebhook(ZAPIER_WEBHOOK_URL, 'Zapier', blogData, skipSocial);
-}
-
-async function sendToMake(blogData, skipSocial = false) {
-  await sendToWebhook(MAKE_WEBHOOK_URL, 'Make.com', blogData, skipSocial);
 }
 
 // ============================================================================
@@ -832,6 +831,7 @@ async function generateBlog() {
 
   let imageUrl = null;
   let rawImageUrl = null;
+  let imageUrlForWebhook = null;
   let imageCredit = null;
 
   console.log('\n🖼️  Generating blog header image (1200x600)...');
@@ -845,12 +845,16 @@ async function generateBlog() {
   if (imageData) {
     imageUrl = imageData.url;
     rawImageUrl = imageData.url;
+    // Strip width/height for webhook
+    imageUrlForWebhook = stripDimensionsFromUrl(imageData.url);
     imageCredit = imageData.credit;
     console.log(`✓ Header image: ${imageUrl.substring(0, 80)}...`);
+    console.log(`✓ Webhook image (no dimensions): ${imageUrlForWebhook.substring(0, 80)}...`);
   } else {
     console.warn('⚠️  Could not generate header image');
     imageUrl = `/images/blog/${slug}.jpg`;
     rawImageUrl = imageUrl;
+    imageUrlForWebhook = imageUrl;
   }
 
   let content = stripFootnotes(trend.content || '');
@@ -910,17 +914,16 @@ async function generateBlog() {
       title: trend.title,
       content: content,
       url: `${BLOG_BASE_URL}/${slug}`,
-      imageUrl: rawImageUrl,
+      imageUrl: imageUrlForWebhook,
       socialMediaHook: trend.socialMediaHook || '',
       socialMediaKeyInsight: trend.socialMediaKeyInsight || '',
       socialMediaWhyItMatters: trend.socialMediaWhyItMatters || '',
       socialMediaHashtags: trend.socialMediaHashtags || []
     };
 
-    await sendToZapier(blogData, false);
     await sendToMake(blogData, false);
   } else {
-    console.log('\n⏭️  Skipped social media webhooks (social media disabled)');
+    console.log('\n⏭️  Skipped social media webhook (social media disabled)');
   }
 
   return {
@@ -950,16 +953,11 @@ async function generateBlog() {
     }
     console.log('');
 
-    if (!ZAPIER_WEBHOOK_URL && !MAKE_WEBHOOK_URL && !SKIP_SOCIAL) {
-      console.warn('⚠️  No webhook URLs configured (ZAPIER_WEBHOOK_URL or MAKE_WEBHOOK_URL)');
-      console.warn('   Social media data will not be sent to any automation platform\n');
+    if (!MAKE_WEBHOOK_URL && !SKIP_SOCIAL) {
+      console.warn('⚠️  No webhook URL configured (MAKE_WEBHOOK_URL)');
+      console.warn('   Social media data will not be sent to automation platform\n');
     } else if (!SKIP_SOCIAL) {
-      if (ZAPIER_WEBHOOK_URL) {
-        console.log('✓ Zapier webhook configured');
-      }
-      if (MAKE_WEBHOOK_URL) {
-        console.log('✓ Make.com webhook configured');
-      }
+      console.log('✓ Make.com webhook configured');
       console.log('');
     }
 
