@@ -1,3 +1,4 @@
+---
 slug: st-paul-ransomware-crisis-city-emergency-systems
 title: St Paul Ransomware Crisis Disrupts City Emergency Systems
 excerpt: St Paul's emergency services faced delays and outages after ransomware impacted city infrastructure. Critical digital systems were suspended, and sensitive data was leaked by attackers.
