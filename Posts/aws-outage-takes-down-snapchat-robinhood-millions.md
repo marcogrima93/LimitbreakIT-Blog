@@ -37,7 +37,7 @@ Translation: Everything is on fire, and we're scrambling to fix it.
 
 Cryptocurrency exchange **Coinbase** blamed AWS too. So did payment platform **Venmo**. Even Amazon's own services couldn't escape. **Amazon.com**, **Prime Video**, and **Alexa** all showed error pages according to **Downdetector**.
 
-{{image: https://image.pollinations.ai/prompt/aws%20data%20center%20server%20room%20outage%20red%20alert%2C%20professional%2C%20modern%2C%20high%20quality%2C%20photorealistic%2C%20detailed?width=800&height=450&nologo=true&token=NmtXmge4lpj9eeBu, width: 800, height: 450, alt: "AWS cloud infrastructure failure"}}
+{{image: https://image.pollinations.ai/prompt/aws%20data%20center%20server%20room%20down%20arrow%20down%20red%20aws%20alert%2C%20modern%2C%20high%20quality%2C%20photorealistic?width=800&height=450&nologo=true&token=NmtXmge4lpj9eeBu, width: 800, height: 450, alt: "AWS cloud infrastructure failure"}}
 
 ## The Damage Report Gets Worse
 
